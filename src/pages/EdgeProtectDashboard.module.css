@@ -1,0 +1,189 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.header h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.badge {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-primary);
+  background-color: rgba(0, 180, 216, 0.1);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* Traffic Charts */
+.trafficCharts {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.trafficChart {
+  flex: 1;
+  min-width: 0;
+}
+
+.trafficChart h4 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+/* Bottom Row */
+.bottomRow {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* Summary Cards */
+.summaryCards {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 160px;
+}
+
+.donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.donutSvg {
+  width: 100px;
+  height: 100px;
+}
+
+.donutValue {
+  font-size: 24px;
+  font-weight: 700;
+  fill: var(--color-text-primary);
+}
+
+.donutLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.summaryLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.summaryLegend i {
+  font-style: normal;
+  margin-right: 4px;
+}
+
+/* Controller Status */
+.controllerSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.controllerSection h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-md);
+}
+
+.controllerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.controllerCard {
+  padding: var(--spacing-md) !important;
+}
+
+.controllerName {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.controllerStats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.progressBar {
+  height: 6px;
+  background-color: var(--color-bg-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.nodeStatus {
+  display: flex;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.nodeUp {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.nodeDown {
+  color: var(--color-error);
+  font-weight: 500;
+}

@@ -1,0 +1,74 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerLeft,
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+/* Sankey chart fills remaining viewport space */
+.chartCard {
+  padding: 0;
+}
+
+.sankeyRow {
+  display: flex;
+  align-items: stretch;
+}
+
+.sankeyContainer {
+  flex: 1;
+  position: relative;
+  height: calc(100vh - 440px);
+  min-height: 350px;
+  min-width: 0;
+}
+
+/* Floating download icon — visible only on hover */
+.downloadBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.sankeyContainer:hover .downloadBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.downloadBtn:hover {
+  background: #fff;
+  color: var(--color-text-primary);
+}
+
+
+.tableSection {
+  margin-top: var(--spacing-md);
+}

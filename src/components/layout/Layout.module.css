@@ -1,0 +1,21 @@
+.layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main {
+  margin-top: var(--header-height);
+  margin-left: var(--sidebar-width);
+  padding: var(--spacing-lg);
+  height: calc(100vh - var(--header-height));
+  background-color: var(--color-bg-content);
+  transition: margin-left 0.2s ease;
+  overflow: hidden;
+}
+
+/* When sidebar is expanded */
+.layout:has(.sidebar.expanded) .main {
+  margin-left: var(--sidebar-width-expanded);
+}
