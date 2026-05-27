@@ -393,6 +393,14 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
   ],
 };
 
+// Set of ASN node IDs that have associated PO nodes (used for expand icon logic)
+export const asnNodeIDsWithPOs = new Set<string>([
+  ...poOriginLinks.map(l => l.target),
+  ...poPrevPeerLinks.map(l => l.target),
+  ...poNextPeerLinks.map(l => l.source),
+  ...poDestLinks.map(l => l.source),
+]);
+
 // Backward-compat flat export (collapsed view, no PO layers) — kept so nothing else breaks
 export const sankeyLinks: SankeyLink[] = [
   ...originToPrevLinks,

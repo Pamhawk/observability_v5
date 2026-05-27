@@ -5,6 +5,7 @@ import { SunburstChart, TimeSeriesChart, BarChart, ChartExportWrapper, type Sunb
 import {
   getSunburstDataForASN,
   routers,
+  myAsnExpandedNodes,
   generateTrafficData,
   protocolData,
   topApplications,
@@ -16,7 +17,10 @@ interface MyASNPopupProps {
   isOpen: boolean;
   onClose: () => void;
   node: SankeyNode | null;
-  onCollapse?: (nodeId: string) => void; // collapses the ASN back to a single Sankey node
+  onCollapse?: (nodeId: string) => void;
+  /** IDs of router/interface Sankey nodes currently pinned to show in the diagram */
+  routerFilterSelections?: Set<string>;
+  onRouterFilterChange?: (nodeId: string, checked: boolean) => void;
 }
 
 type TabType = 'routers' | 'traffic';
@@ -29,10 +33,19 @@ interface TreeItem {
   type: 'asn' | 'router' | 'interface';
   trafficGbps: number;
   percent: number;
+  /** Sankey node ID for the "pin in diagram" checkbox (routers and interfaces only) */
+  sankeyNodeId?: string;
   children?: TreeItem[];
 }
 
-export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProps) {
+export function MyASNPopup({
+  isOpen,
+  onClose,
+  node,
+  onCollapse,
+  routerFilterSelections = new Set(),
+  onRouterFilterChange,
+}: MyASNPopupProps) {
   const [activeTab, setActiveTab] = useState<TabType>('routers');
   const [direction, setDirection] = useState<TrafficDirection>('inbound');
   const [unit, setUnit] = useState<'bps' | 'pps'>('bps');
@@ -51,15 +64,29 @@ export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProp
     return getSunburstDataForASN(node.asnNumber);
   }, [node]);
 
-  // Build tree data
+  // Build tree data with Sankey node IDs for pin checkboxes
   const treeData = useMemo((): TreeItem[] => {
     if (!node) return [];
 
     const asnRouters = routers.filter(r => r.asnId === node.asnNumber);
     const totalTraffic = asnRouters.reduce(
       (sum, r) => sum + r.interfaces.reduce((s, i) => s + i.trafficGbps, 0),
-      0
+      0,
     );
+
+    // Build a lookup: routerName → Sankey router node ID
+    // and interfaceName+routerName → Sankey interface node ID
+    const expandedSubNodes = myAsnExpandedNodes[node.id] ?? [];
+    const routerSankeyId: Record<string, string> = {};
+    const ifaceSankeyId: Record<string, string> = {};
+    for (const sn of expandedSubNodes) {
+      if (sn.stage === 'myRouter') {
+        routerSankeyId[sn.name] = sn.id;
+      } else if (sn.stage === 'myIngressInterface' || sn.stage === 'myEgressInterface') {
+        const key = `${sn.routerDisplayName}::${sn.name}`;
+        ifaceSankeyId[key] = sn.id;
+      }
+    }
 
     return [
       {
@@ -78,6 +105,7 @@ export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProp
             type: 'router' as const,
             trafficGbps: routerTraffic,
             percent: (routerTraffic / totalTraffic) * 100,
+            sankeyNodeId: routerSankeyId[router.name],
             children: router.interfaces.map((iface) => ({
               id: `${router.id}-${iface.id}`,
               name: iface.name,
@@ -85,6 +113,7 @@ export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProp
               type: 'interface' as const,
               trafficGbps: iface.trafficGbps,
               percent: iface.trafficPercent,
+              sankeyNodeId: ifaceSankeyId[`${router.name}::${iface.name}`],
             })),
           };
         }),
@@ -220,6 +249,21 @@ export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProp
             </button>
           ) : (
             <span className={styles.expandPlaceholder} />
+          )}
+          {(item.type === 'router' || item.type === 'interface') && item.sankeyNodeId ? (
+            <input
+              type="checkbox"
+              className={styles.pinCheckbox}
+              checked={routerFilterSelections.has(item.sankeyNodeId)}
+              title="Pin in Sankey diagram (auto-expands My ASN)"
+              onChange={(e) => {
+                e.stopPropagation();
+                onRouterFilterChange?.(item.sankeyNodeId!, e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className={styles.checkboxPlaceholder} />
           )}
           <span className={styles.itemName}>{item.name}</span>
           <span className={styles.itemCodeId}>{item.codeId}</span>
@@ -387,6 +431,8 @@ export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProp
               </div>
             </div>
             <div className={styles.treeColumnHeaders}>
+              <span />
+              <span />
               <span>Name</span>
               <span>Code / ID</span>
               <span>{unit === 'bps' ? 'Gbps' : 'pps'}</span>

@@ -130,6 +130,53 @@
   background-color: transparent;
 }
 
+/* Expand/collapse icon buttons overlaid on the Sankey nodes */
+.iconBtn {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  font-size: 8px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  pointer-events: all;
+}
+
+.iconBtn:hover {
+  transform: scale(1.25);
+  opacity: 1 !important;
+}
+
+/* My ASN expand/collapse — teal filled */
+.iconBtnTeal {
+  background: #14B8A6;
+  color: #fff;
+  opacity: 0.85;
+}
+
+/* My ASN collapse (on router nodes) — teal outline */
+.iconBtnTealOutline {
+  background: #fff;
+  color: #0D9488;
+  border: 1px solid #0D9488 !important;
+  opacity: 0.85;
+  font-size: 9px;
+}
+
+/* PO expand/collapse — amber */
+.iconBtnPO {
+  background: #F97316;
+  color: #fff;
+  opacity: 0.85;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
