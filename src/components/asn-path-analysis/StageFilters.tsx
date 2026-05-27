@@ -23,7 +23,9 @@ export function StageFilters({ filters, nodes, onChange }: StageFiltersProps) {
     const stageNodes = nodes.filter(n => n.stage === stage);
     return stageNodes.map(n => ({
       value: n.asnNumber,
-      label: `${n.name} (${n.asnNumber})`,
+      label: n.nodeType === 'protectedObject' && n.prefix
+        ? `${n.name} (${n.prefix})`
+        : `${n.name} (AS${n.asnNumber})`,
     }));
   };
 

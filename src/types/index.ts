@@ -130,12 +130,14 @@ export interface SankeyLink {
 export type SankeyStage =
   | 'originPO'
   | 'originASN'
+  | 'previousPeerPO'      // PO node belonging to a Previous Peer ASN
   | 'previousPeer'
   | 'myASN'               // collapsed My ASN node
   | 'myIngressInterface'  // expanded: ingress interface inside My ASN
   | 'myRouter'            // expanded: router inside My ASN
   | 'myEgressInterface'   // expanded: egress interface inside My ASN
   | 'nextPeer'
+  | 'nextPeerPO'          // PO node belonging to a Next Peer ASN
   | 'destinationASN'
   | 'destinationPO';
 

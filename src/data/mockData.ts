@@ -100,13 +100,17 @@ export const routers: Router[] = [
   },
 ];
 
-// Stage filter configuration with colors matching the mockup
+// Stage filter configuration — 9 independent filters (5 ASN + 4 PO layers)
 export const defaultStageFilters: StageFilter[] = [
-  { stage: 'originASN', label: 'Origin ASN', color: '#F97316', enabled: true, selectedASNs: [] },
-  { stage: 'previousPeer', label: 'Previous Peer', color: '#8B5CF6', enabled: true, selectedASNs: [] },
-  { stage: 'myASN', label: 'My ASNs', color: '#14B8A6', enabled: true, selectedASNs: [] },
-  { stage: 'nextPeer', label: 'Next Peer', color: '#3B82F6', enabled: true, selectedASNs: [] },
+  { stage: 'originPO',       label: 'Origin PO',       color: '#FED7AA', enabled: true, selectedASNs: [] },
+  { stage: 'originASN',      label: 'Origin ASN',      color: '#F97316', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeerPO', label: 'Prev Peer PO',    color: '#DDD6FE', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeer',   label: 'Previous Peer',   color: '#8B5CF6', enabled: true, selectedASNs: [] },
+  { stage: 'myASN',          label: 'My ASNs',         color: '#14B8A6', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeer',       label: 'Next Peer',       color: '#3B82F6', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeerPO',     label: 'Next Peer PO',    color: '#BFDBFE', enabled: true, selectedASNs: [] },
   { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
+  { stage: 'destinationPO',  label: 'Destination PO',  color: '#FBCFE8', enabled: true, selectedASNs: [] },
 ];
 
 // ─── Sankey nodes ──────────────────────────────────────────────────────────────
@@ -133,6 +137,15 @@ export const sankeyNodes: SankeyNode[] = [
   { id: 'origin-8075', name: 'Microsoft', asnNumber: 8075, stage: 'originASN', nodeType: 'asn', trafficGbps: 28, country: 'United States', state: 'Washington', city: 'Redmond', inFlows: 2, outFlows: 2, isMyASN: false },
   { id: 'origin-32934', name: 'Meta', asnNumber: 32934, stage: 'originASN', nodeType: 'asn', trafficGbps: 22, country: 'United States', state: 'California', city: 'Menlo Park', inFlows: 1, outFlows: 1, isMyASN: false },
 
+  // ── Previous Peer Protected Objects ──────────────────────────────────────
+  // Unique asnNumbers in 901xxx range so filter dropdowns treat them individually.
+  // "IX-Peering-Block" is SHARED — it links to both Cogent (prev-174) AND Lumen (prev-3356).
+  { id: 'san-ppo-174-1',  name: 'Cogent-Transit-A',   asnNumber: 901001, stage: 'previousPeerPO', nodeType: 'protectedObject', trafficGbps: 28, country: 'United States', state: 'District of Columbia', city: 'Washington DC', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '38.104.0.0/14' },
+  { id: 'san-ppo-174-2',  name: 'IX-Peering-Block',   asnNumber: 901002, stage: 'previousPeerPO', nodeType: 'protectedObject', trafficGbps: 18, country: 'United States', state: 'Virginia',             city: 'Ashburn',      inFlows: 0, outFlows: 2, isMyASN: false, prefix: '206.126.236.0/22' },
+  { id: 'san-ppo-3356-1', name: 'Lumen-Core-IP',      asnNumber: 901003, stage: 'previousPeerPO', nodeType: 'protectedObject', trafficGbps: 20, country: 'United States', state: 'Colorado',             city: 'Denver',       inFlows: 0, outFlows: 1, isMyASN: false, prefix: '65.119.0.0/16' },
+  { id: 'san-ppo-1299-1', name: 'Telia-EU-Backbone',  asnNumber: 901004, stage: 'previousPeerPO', nodeType: 'protectedObject', trafficGbps: 16, country: 'Sweden',        state: 'Stockholm County',    city: 'Stockholm',    inFlows: 0, outFlows: 1, isMyASN: false, prefix: '62.115.0.0/16' },
+  { id: 'san-ppo-6939-1', name: 'HE-IPv6-Exchange',   asnNumber: 901005, stage: 'previousPeerPO', nodeType: 'protectedObject', trafficGbps: 13, country: 'United States', state: 'California',          city: 'Fremont',      inFlows: 0, outFlows: 1, isMyASN: false, prefix: '216.218.0.0/16' },
+
   // ── Previous Peers ─────────────────────────────────────────────────────────
   { id: 'prev-174', name: 'Cogent', asnNumber: 174, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 69, country: 'United States', state: 'District of Columbia', city: 'Washington DC', inFlows: 3, outFlows: 2, isMyASN: false },
   { id: 'prev-3356', name: 'Lumen', asnNumber: 3356, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 38, country: 'United States', state: 'Colorado', city: 'Denver', inFlows: 2, outFlows: 2, isMyASN: false },
@@ -148,6 +161,12 @@ export const sankeyNodes: SankeyNode[] = [
   { id: 'next-2914', name: 'NTT', asnNumber: 2914, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 65, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: false },
   { id: 'next-7018', name: 'AT&T', asnNumber: 7018, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 53, country: 'United States', state: 'Texas', city: 'Dallas', inFlows: 2, outFlows: 3, isMyASN: false },
   { id: 'next-3257', name: 'GTT', asnNumber: 3257, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 47, country: 'United States', state: 'Virginia', city: 'McLean', inFlows: 3, outFlows: 3, isMyASN: false },
+
+  // ── Next Peer Protected Objects ────────────────────────────────────────────
+  // Unique asnNumbers in 902xxx range.
+  { id: 'san-npo-2914-1', name: 'NTT-Global-IP',    asnNumber: 902001, stage: 'nextPeerPO', nodeType: 'protectedObject', trafficGbps: 30, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '129.250.0.0/16' },
+  { id: 'san-npo-7018-1', name: 'ATT-Business-Net', asnNumber: 902002, stage: 'nextPeerPO', nodeType: 'protectedObject', trafficGbps: 23, country: 'United States', state: 'Texas',    city: 'Dallas',   inFlows: 1, outFlows: 0, isMyASN: false, prefix: '12.0.0.0/9'   },
+  { id: 'san-npo-3257-1', name: 'GTT-Backbone-EU',  asnNumber: 902003, stage: 'nextPeerPO', nodeType: 'protectedObject', trafficGbps: 17, country: 'United States', state: 'Virginia', city: 'McLean',   inFlows: 1, outFlows: 0, isMyASN: false, prefix: '141.136.0.0/16' },
 
   // ── Destination ASNs ───────────────────────────────────────────────────────
   { id: 'dest-enterprise1', name: 'Enterprise-A', asnNumber: 65001, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 45, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: false },
@@ -180,6 +199,24 @@ export const poOriginLinks: SankeyLink[] = [
   { source: 'san-opo-8075-1',  target: 'origin-8075',  value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
   { source: 'san-opo-8075-2',  target: 'origin-8075',  value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
   { source: 'san-opo-32934-1', target: 'origin-32934', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+];
+
+// Previous Peer PO → Previous Peer ASN
+// Note: IX-Peering-Block (san-ppo-174-2) flows to BOTH Cogent AND Lumen (shared PO).
+export const poPrevPeerLinks: SankeyLink[] = [
+  { source: 'san-ppo-174-1',  target: 'prev-174',  value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+  { source: 'san-ppo-174-2',  target: 'prev-174',  value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+  { source: 'san-ppo-174-2',  target: 'prev-3356', value:  7, trafficGbps:  7, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+  { source: 'san-ppo-3356-1', target: 'prev-3356', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+  { source: 'san-ppo-1299-1', target: 'prev-1299', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+  { source: 'san-ppo-6939-1', target: 'prev-6939', value: 13, trafficGbps: 13, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 40 } },
+];
+
+// Next Peer ASN → Next Peer PO
+export const poNextPeerLinks: SankeyLink[] = [
+  { source: 'next-2914', target: 'san-npo-2914-1', value: 30, trafficGbps: 30, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+  { source: 'next-7018', target: 'san-npo-7018-1', value: 23, trafficGbps: 23, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+  { source: 'next-3257', target: 'san-npo-3257-1', value: 17, trafficGbps: 17, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
 ];
 
 // Origin ASN → Previous Peer (unchanged from original)

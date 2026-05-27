@@ -10,10 +10,12 @@ import {
   sankeyNodes,
   myAsnExpandedNodes,
   poOriginLinks,
+  poPrevPeerLinks,
   originToPrevLinks,
   prevToMyAsnLinks,
   myAsnToNextLinks,
   nextToDestLinks,
+  poNextPeerLinks,
   poDestLinks,
   myAsnExpandedLinks,
   defaultStageFilters,
@@ -21,17 +23,14 @@ import {
 import type { SankeyNode, SankeyLink, StageFilter, TimeRange } from '../../types';
 import styles from './ASNPathAnalysis.module.css';
 
-// Stages that are sub-types of a parent stage (shown/hidden with their parent)
-const SUB_STAGE_PARENT: Record<string, string> = {
-  originPO: 'originASN',
-  destinationPO: 'destinationASN',
-  myIngressInterface: 'myASN',
-  myRouter: 'myASN',
-  myEgressInterface: 'myASN',
-};
+// My ASN sub-stages (always controlled by the myASN filter visibility + expand state)
+const MY_ASN_SUB_STAGES = new Set(['myIngressInterface', 'myRouter', 'myEgressInterface']);
 
-// The 5 ASN stages used by the StageFilters dropdowns
-const ASN_STAGES = ['originASN', 'previousPeer', 'myASN', 'nextPeer', 'destinationASN'];
+// All 9 independently-controlled stages (for the minimum-2-enabled guard)
+const INDEPENDENT_STAGES = [
+  'originPO', 'originASN', 'previousPeerPO', 'previousPeer',
+  'myASN', 'nextPeer', 'nextPeerPO', 'destinationASN', 'destinationPO',
+];
 
 export function ASNPathAnalysis() {
   const [stageFilters, setStageFilters] = useState<StageFilter[]>(defaultStageFilters);
@@ -54,6 +53,7 @@ export function ASNPathAnalysis() {
       f.stage === stage ? { ...f, enabled: !f.enabled } : f
     ));
   }, [stageFilters]);
+
 
   // Toggle expand/collapse for a given My ASN node id
   const handleToggleExpand = useCallback((nodeId: string) => {
@@ -83,16 +83,16 @@ export function ASNPathAnalysis() {
   // Combines base nodes + PO nodes + expanded/collapsed My ASN nodes,
   // filtered by stage visibility and ASN selection.
   const computedSankeyData = useMemo(() => {
-    const enabledStages = stageFilters.filter(f => f.enabled).map(f => f.stage);
+    const enabledStages = new Set(stageFilters.filter(f => f.enabled).map(f => f.stage));
 
-    // Helper: is a stage visible?
-    const stageVisible = (stage: string): boolean => {
-      const parent = SUB_STAGE_PARENT[stage];
-      if (parent) return enabledStages.includes(parent as never);
-      return enabledStages.includes(stage as never);
-    };
+    // Is a stage independently enabled?
+    const stageOn = (stage: string) => enabledStages.has(stage as never);
 
-    // Helper: is a node allowed by the ASN selection filter?
+    // My ASN sub-stage visibility depends on myASN being enabled
+    const subStageOn = (stage: string) =>
+      MY_ASN_SUB_STAGES.has(stage) ? stageOn('myASN') : stageOn(stage);
+
+    // Helper: is a node allowed by the ASN/PO selection filter?
     const nodePassesFilter = (node: SankeyNode): boolean => {
       const filter = stageFilters.find(f => f.stage === node.stage);
       if (filter && filter.selectedASNs.length > 0) {
@@ -105,12 +105,11 @@ export function ASNPathAnalysis() {
     const nodes: SankeyNode[] = [];
 
     for (const node of sankeyNodes) {
-      if (!stageVisible(node.stage)) continue;
+      if (!subStageOn(node.stage)) continue;
       if (!nodePassesFilter(node)) continue;
 
       if (node.stage === 'myASN') {
         if (expandedASNs.has(node.id)) {
-          // Replace collapsed My ASN node with its ingress/router/egress sub-nodes
           const expanded = myAsnExpandedNodes[node.id] ?? [];
           nodes.push(...expanded);
         } else {
@@ -124,44 +123,39 @@ export function ASNPathAnalysis() {
     // ── Links ──────────────────────────────────────────────────────────────
     const links: SankeyLink[] = [];
 
-    // PO layers (origin side)
-    if (stageVisible('originPO')) links.push(...poOriginLinks);
-
-    // Origin ASN → Previous Peer
+    if (stageOn('originPO'))       links.push(...poOriginLinks);
     links.push(...originToPrevLinks);
+    if (stageOn('previousPeerPO')) links.push(...poPrevPeerLinks);
 
     // Previous Peer ↔ My ASN: collapsed or expanded per-ASN
     const myAsnNodes = sankeyNodes.filter(n => n.stage === 'myASN');
-    for (const asnNode of myAsnNodes) {
-      // Skip if myASN stage is disabled or this ASN is filtered out
-      if (!stageVisible('myASN')) continue;
-      const filter = stageFilters.find(f => f.stage === 'myASN');
-      if (filter?.selectedASNs.length && !filter.selectedASNs.includes(asnNode.asnNumber)) continue;
-
-      if (expandedASNs.has(asnNode.id)) {
-        links.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
-      } else {
-        links.push(...(prevToMyAsnLinks[asnNode.id] ?? []));
-        links.push(...(myAsnToNextLinks[asnNode.id] ?? []));
+    if (stageOn('myASN')) {
+      for (const asnNode of myAsnNodes) {
+        const filter = stageFilters.find(f => f.stage === 'myASN');
+        if (filter?.selectedASNs.length && !filter.selectedASNs.includes(asnNode.asnNumber)) continue;
+        if (expandedASNs.has(asnNode.id)) {
+          links.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
+        } else {
+          links.push(...(prevToMyAsnLinks[asnNode.id] ?? []));
+          links.push(...(myAsnToNextLinks[asnNode.id] ?? []));
+        }
       }
     }
 
-    // Next Peer → Destination ASN
     links.push(...nextToDestLinks);
+    if (stageOn('nextPeerPO'))     links.push(...poNextPeerLinks);
+    if (stageOn('destinationPO'))  links.push(...poDestLinks);
 
-    // PO layers (destination side)
-    if (stageVisible('destinationPO')) links.push(...poDestLinks);
-
-    // Remove any links where source or target node doesn't exist in the visible set
+    // Drop links whose source/target isn't in the visible node set
     const nodeIds = new Set(nodes.map(n => n.id));
     const validLinks = links.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
 
     return { nodes, links: validLinks };
   }, [stageFilters, expandedASNs]);
 
-  // Nodes passed to StageFilters — only ASN-stage nodes (no PO/interface nodes)
+  // All non-interface nodes passed to StageFilters for dropdown option building
   const asnNodesForFilters = useMemo(
-    () => sankeyNodes.filter(n => ASN_STAGES.includes(n.stage)),
+    () => sankeyNodes.filter(n => INDEPENDENT_STAGES.includes(n.stage)),
     []
   );
 

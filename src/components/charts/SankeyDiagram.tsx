@@ -34,12 +34,14 @@ interface EChartsEventParams {
 const STAGE_COLORS: Record<SankeyStage, string> = {
   originPO:           '#FED7AA', // soft orange (child of originASN)
   originASN:          '#F97316', // orange
+  previousPeerPO:     '#DDD6FE', // light purple (child of previousPeer)
   previousPeer:       '#8B5CF6', // purple
   myASN:              '#14B8A6', // teal
   myIngressInterface: '#99F6E4', // lightest teal
   myRouter:           '#0E9F8E', // medium teal
   myEgressInterface:  '#0D9488', // darkest teal
   nextPeer:           '#3B82F6', // blue
+  nextPeerPO:         '#BFDBFE', // light blue (child of nextPeer)
   destinationASN:     '#EC4899', // pink
   destinationPO:      '#FBCFE8', // soft pink (child of destinationASN)
 };
@@ -48,27 +50,31 @@ const STAGE_COLORS: Record<SankeyStage, string> = {
 const DEPTH_COMPACT: Record<SankeyStage, number> = {
   originPO:           0,
   originASN:          1,
-  previousPeer:       2,
-  myASN:              3,
-  myIngressInterface: 3, // unused in compact
-  myRouter:           4, // unused in compact
-  myEgressInterface:  5, // unused in compact
-  nextPeer:           4,
-  destinationASN:     5,
-  destinationPO:      6,
+  previousPeerPO:     2,
+  previousPeer:       3,
+  myASN:              4,
+  myIngressInterface: 4, // unused in compact
+  myRouter:           5, // unused in compact
+  myEgressInterface:  6, // unused in compact
+  nextPeer:           5,
+  nextPeerPO:         6,
+  destinationASN:     7,
+  destinationPO:      8,
 };
 
 const DEPTH_EXPANDED: Record<SankeyStage, number> = {
   originPO:           0,
   originASN:          1,
-  previousPeer:       2,
-  myASN:              3, // collapsed My ASN nodes stay at 3, long-span link to nextPeer(6)
-  myIngressInterface: 3,
-  myRouter:           4,
-  myEgressInterface:  5,
-  nextPeer:           6,
-  destinationASN:     7,
-  destinationPO:      8,
+  previousPeerPO:     2,
+  previousPeer:       3,
+  myASN:              4, // collapsed My ASN nodes stay at 4, long-span link to nextPeer(7)
+  myIngressInterface: 4,
+  myRouter:           5,
+  myEgressInterface:  6,
+  nextPeer:           7,
+  nextPeerPO:         8,
+  destinationASN:     9,
+  destinationPO:      10,
 };
 
 // Label prefix by stage
@@ -363,7 +369,10 @@ export function SankeyDiagram({
   // ── Legend ───────────────────────────────────────────────────────────────────
   // Shows the 5 main stage filters + PO and interface indicators when relevant
   const renderLegend = () => {
-    const hasPO = nodes.some(n => n.stage === 'originPO' || n.stage === 'destinationPO');
+    const hasPO = nodes.some(n =>
+      n.stage === 'originPO' || n.stage === 'destinationPO' ||
+      n.stage === 'previousPeerPO' || n.stage === 'nextPeerPO'
+    );
     const hasExpanded = anyExpanded;
 
     return (
