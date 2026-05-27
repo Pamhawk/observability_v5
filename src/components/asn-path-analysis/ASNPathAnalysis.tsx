@@ -28,6 +28,13 @@ import styles from './ASNPathAnalysis.module.css';
 // My ASN sub-stages: visibility follows myASN filter
 const MY_ASN_SUB_STAGES = new Set(['myIngressInterface', 'myRouter', 'myEgressInterface']);
 
+// Static node-id → stage map built once from all mock data (used for semantic link guards).
+// Covers collapsed nodes, expanded sub-nodes, and PO nodes.
+const NODE_STAGE: Map<string, string> = new Map([
+  ...sankeyNodes.map(n => [n.id, n.stage] as [string, string]),
+  ...Object.values(myAsnExpandedNodes).flat().map(n => [n.id, n.stage] as [string, string]),
+]);
+
 // All independently-controlled stages (for filter dropdowns)
 const INDEPENDENT_STAGES: SankeyStage[] = [
   'originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN',
@@ -300,12 +307,23 @@ export function ASNPathAnalysis() {
       l => nodeIds.has(l.source) && nodeIds.has(l.target),
     );
 
+    // ── Semantic guard ─────────────────────────────────────────────────────
+    // Some stage combinations would let the bridge create nonsensical shortcuts.
+    // previousPeer → nextPeer is the canonical example: those two ASNs never
+    // peer directly — traffic MUST transit the customer's own network.
+    const semanticLinks = validLinks.filter(l => {
+      const src = NODE_STAGE.get(l.source);
+      const dst = NODE_STAGE.get(l.target);
+      if (src === 'previousPeer' && dst === 'nextPeer') return false;
+      return true;
+    });
+
     // ── Dynamic depths ─────────────────────────────────────────────────────
     const anyExpanded = nodes.some(n => MY_ASN_SUB_STAGES.has(n.stage));
     const presentStages = new Set(nodes.map(n => n.stage));
     const dynamicDepths = computeDynamicDepths(enabledStages, anyExpanded, presentStages);
 
-    return { nodes, links: validLinks, dynamicDepths };
+    return { nodes, links: semanticLinks, dynamicDepths };
   }, [stageFilters, expandedASNs, routerFilterSelections]);
 
   // Nodes for StageFilters dropdown options

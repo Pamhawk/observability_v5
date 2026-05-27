@@ -132,9 +132,12 @@ export const sankeyNodes: SankeyNode[] = [
 
   // ── Upstream Protected Objects (customer-owned prefixes — ingress side) ────
   // asnNumber matches the owning My ASN so the filter dropdown works correctly.
+  // NOTE: san-upo-64513-2 has inFlows:0 — it is a pure ORIGIN (no upstream peers feed it;
+  //       traffic originates from inside this prefix and flows outward into My ASN).
   { id: 'san-upo-64512-1', name: 'NYC-WebFarm',    asnNumber: 64512, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 35, country: 'United States', state: 'New York',    city: 'New York',      inFlows: 2, outFlows: 1, isMyASN: true, prefix: '198.18.10.0/24' },
   { id: 'san-upo-64512-2', name: 'NYC-Hosting',    asnNumber: 64512, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 40, country: 'United States', state: 'New York',    city: 'New York',      inFlows: 3, outFlows: 1, isMyASN: true, prefix: '198.18.11.0/23' },
   { id: 'san-upo-64513-1', name: 'LAX-Anycast',    asnNumber: 64513, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 47, country: 'United States', state: 'California',  city: 'Los Angeles',   inFlows: 2, outFlows: 1, isMyASN: true, prefix: '198.18.20.0/24' },
+  { id: 'san-upo-64513-2', name: 'LAX-Servers',    asnNumber: 64513, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 18, country: 'United States', state: 'California',  city: 'Los Angeles',   inFlows: 0, outFlows: 1, isMyASN: true, prefix: '198.18.21.0/24' },
   { id: 'san-upo-64514-1', name: 'FRA-Enterprise', asnNumber: 64514, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 43, country: 'Germany',       state: 'Hesse',       city: 'Frankfurt',     inFlows: 2, outFlows: 1, isMyASN: true, prefix: '198.18.30.0/24' },
 
   // ── My ASNs — marked expandable (click to drill into routers/interfaces) ───
@@ -143,7 +146,10 @@ export const sankeyNodes: SankeyNode[] = [
   { id: 'my-64514', name: 'MyNet-EU',   asnNumber: 64514, stage: 'myASN', nodeType: 'asn', trafficGbps: 43, country: 'Germany',       state: 'Hesse',      city: 'Frankfurt',   inFlows: 1, outFlows: 1, isMyASN: true, expandable: true },
 
   // ── Downstream Protected Objects (customer-owned prefixes — egress side) ───
+  // NOTE: san-dpo-64512-2 has outFlows:0 — it is a pure DESTINATION (traffic from
+  //       My ASN terminates here; it does not forward to any next peer or further ASN).
   { id: 'san-dpo-64512-1', name: 'NYC-CDN-Out',    asnNumber: 64512, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 75, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 1, outFlows: 3, isMyASN: true, prefix: '198.18.50.0/24' },
+  { id: 'san-dpo-64512-2', name: 'NYC-Direct-In',  asnNumber: 64512, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 12, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 1, outFlows: 0, isMyASN: true, prefix: '198.18.55.0/24' },
   { id: 'san-dpo-64513-1', name: 'LAX-Transit-Out',asnNumber: 64513, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 1, outFlows: 2, isMyASN: true, prefix: '198.18.51.0/24' },
   { id: 'san-dpo-64514-1', name: 'FRA-EU-Out',     asnNumber: 64514, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 43, country: 'Germany',       state: 'Hesse',      city: 'Frankfurt',   inFlows: 1, outFlows: 2, isMyASN: true, prefix: '198.18.52.0/24' },
 
@@ -205,16 +211,20 @@ export const prevToUpstreamPOLinks: SankeyLink[] = [
 ];
 
 // Upstream PO → My ASN (collapsed view only; expanded view goes upo → ingress iface)
+// san-upo-64513-2 has NO incoming links — it is a flow ORIGIN (generates traffic itself).
 export const upstreamPOToMyAsnLinks: SankeyLink[] = [
   { source: 'san-upo-64512-1', target: 'my-64512', value: 35, trafficGbps: 35, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
   { source: 'san-upo-64512-2', target: 'my-64512', value: 40, trafficGbps: 40, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
   { source: 'san-upo-64513-1', target: 'my-64513', value: 47, trafficGbps: 47, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+  { source: 'san-upo-64513-2', target: 'my-64513', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
   { source: 'san-upo-64514-1', target: 'my-64514', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
 ];
 
 // My ASN → Downstream PO (collapsed view only; expanded view goes egress iface → dpo)
+// san-dpo-64512-2 has NO outgoing links — it is a flow DESTINATION (traffic terminates here).
 export const myAsnToDownstreamPOLinks: SankeyLink[] = [
   { source: 'my-64512', target: 'san-dpo-64512-1', value: 75, trafficGbps: 75, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+  { source: 'my-64512', target: 'san-dpo-64512-2', value: 12, trafficGbps: 12, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 74 } },
   { source: 'my-64513', target: 'san-dpo-64513-1', value: 47, trafficGbps: 47, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
   { source: 'my-64514', target: 'san-dpo-64514-1', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
 ];
@@ -359,19 +369,23 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
     { source: 'san-egr-64512-nyc01-eth10', target: 'san-dpo-64512-1', value: 50, trafficGbps: 50, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
     { source: 'san-egr-64512-nyc01-eth11', target: 'san-dpo-64512-1', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
     { source: 'san-egr-64512-nyc02-ge01',  target: 'san-dpo-64512-1', value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
+    // Egress → Downstream PO (pure-sink: NYC-Direct-In has no onward connections)
+    { source: 'san-egr-64512-nyc01-eth11', target: 'san-dpo-64512-2', value: 12, trafficGbps: 12, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 74 } },
   ],
 
   // ── MyNet-West (AS64513) expanded links ────────────────────────────────────
-  // upo-64513-1 (47G) → Te0/0 28 + Te0/1 19 = 47 ✓
-  // Ingress: Te0/0=28, Te0/1=19 → total 47 ✓
-  // Router: LAX-Core-01=47 ✓  Egress: Te1/0=47 ✓  dpo-64513-1 total in: 47 ✓
+  // upo-64513-1 (47G) → Te0/0 28 + Te0/1 19 = 47
+  // upo-64513-2 (18G, pure-origin) → Te0/0 18   (generates traffic; no upstream peers)
+  // Ingress: Te0/0=46, Te0/1=19 → Router: LAX-Core-01=65 → Egress: Te1/0=65 → dpo-64513-1
   'my-64513': [
     { source: 'san-upo-64513-1', target: 'san-ing-64513-lax01-te00', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
     { source: 'san-upo-64513-1', target: 'san-ing-64513-lax01-te01', value: 19, trafficGbps: 19, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 44 } },
-    { source: 'san-ing-64513-lax01-te00', target: 'san-rtr-64513-lax01', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+    // Pure-origin PO: LAX-Servers generates 18G with no upstream peers
+    { source: 'san-upo-64513-2', target: 'san-ing-64513-lax01-te00', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'san-ing-64513-lax01-te00', target: 'san-rtr-64513-lax01', value: 46, trafficGbps: 46, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
     { source: 'san-ing-64513-lax01-te01', target: 'san-rtr-64513-lax01', value: 19, trafficGbps: 19, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 44 } },
-    { source: 'san-rtr-64513-lax01',      target: 'san-egr-64513-lax01-te10', value: 47, trafficGbps: 47, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
-    { source: 'san-egr-64513-lax01-te10', target: 'san-dpo-64513-1', value: 47, trafficGbps: 47, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    { source: 'san-rtr-64513-lax01',      target: 'san-egr-64513-lax01-te10', value: 65, trafficGbps: 65, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    { source: 'san-egr-64513-lax01-te10', target: 'san-dpo-64513-1', value: 65, trafficGbps: 65, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
   ],
 
   // ── MyNet-EU (AS64514) expanded links ─────────────────────────────────────
