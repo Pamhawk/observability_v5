@@ -128,7 +128,7 @@ export function SankeyDiagram({
       lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.4 },
       label: { show: true, fontSize: 11, color: '#374151' },
       nodeWidth: 24,
-      nodeGap: 24,
+      nodeGap: 48,
       layoutIterations: 32,
       left: 80, right: 150, top: 20, bottom: 10,
     }],
