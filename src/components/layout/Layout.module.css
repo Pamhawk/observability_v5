@@ -8,7 +8,7 @@
 .main {
   margin-top: var(--header-height);
   margin-left: var(--sidebar-width);
-  padding: var(--spacing-lg) var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-sm);
   height: calc(100vh - var(--header-height));
   background-color: var(--color-bg-content);
   transition: margin-left 0.2s ease;

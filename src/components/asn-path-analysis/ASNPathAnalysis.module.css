@@ -30,8 +30,8 @@
 .sankeyContainer {
   flex: 1;
   position: relative;
-  height: calc(100vh - 440px);
-  min-height: 380px;
+  height: calc(100vh - 300px);
+  min-height: 500px;
   min-width: 1120px; /* enough room for 7 stages; scrolls on narrow viewports */
 }
 
