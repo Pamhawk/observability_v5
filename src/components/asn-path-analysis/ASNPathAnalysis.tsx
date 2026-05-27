@@ -54,9 +54,15 @@ const EXPANDED_STAGE_ORDER: SankeyStage[] = [
   'nextPeer', 'nextPeerPO', 'destinationASN', 'destinationPO',
 ];
 
+// PO stages only get a column when at least one node of that stage is actually present.
+// Without this guard, enabled-but-empty PO columns still get a depth slot, and ECharts
+// distributes all column widths evenly (including the empty ones), creating visual gaps.
+const PO_STAGES = new Set(['originPO', 'previousPeerPO', 'nextPeerPO', 'destinationPO']);
+
 function computeDynamicDepths(
   enabledStages: Set<string>,
   anyExpanded: boolean,
+  presentStages: Set<string>,   // actual stages that have ≥1 node in the current render
 ): Record<string, number> {
   const seq = anyExpanded ? EXPANDED_STAGE_ORDER : COMPACT_STAGE_ORDER;
   const depths: Record<string, number> = {};
@@ -65,7 +71,9 @@ function computeDynamicDepths(
     const active = MY_ASN_SUB_STAGES.has(stage)
       ? enabledStages.has('myASN')
       : enabledStages.has(stage);
-    if (active) depths[stage] = d++;
+    // For PO stages, only allocate a column when there are actual nodes to fill it
+    const columned = active && (!PO_STAGES.has(stage) || presentStages.has(stage));
+    if (columned) depths[stage] = d++;
   }
   // Collapsed myASN nodes sit at same column as myIngressInterface when expanded
   if (anyExpanded) {
@@ -304,7 +312,8 @@ export function ASNPathAnalysis() {
 
     // ── Dynamic depths ─────────────────────────────────────────────────────
     const anyExpanded = nodes.some(n => MY_ASN_SUB_STAGES.has(n.stage));
-    const dynamicDepths = computeDynamicDepths(enabledStages, anyExpanded);
+    const presentStages = new Set(nodes.map(n => n.stage));
+    const dynamicDepths = computeDynamicDepths(enabledStages, anyExpanded, presentStages);
 
     return { nodes, links: validLinks, dynamicDepths };
   }, [stageFilters, expandedASNs, expandedPOs, routerFilterSelections]);
