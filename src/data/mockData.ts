@@ -109,81 +109,259 @@ export const defaultStageFilters: StageFilter[] = [
   { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
 ];
 
-// Sankey nodes for visualization
-// Flow conservation: total traffic is 165 Gbps end-to-end, balanced at every node
+// ─── Sankey nodes ──────────────────────────────────────────────────────────────
+// Flow conservation: total traffic is 165 Gbps end-to-end, balanced at every node.
+// V6: adds Origin PO nodes, Destination PO nodes, and marks My ASNs as expandable.
 export const sankeyNodes: SankeyNode[] = [
-  // Origin ASNs (sources — outFlows only)
-  { id: 'origin-15169', name: 'Google', asnNumber: 15169, stage: 'originASN', trafficGbps: 45, country: 'United States', state: 'California', city: 'Mountain View', inFlows: 0, outFlows: 2, isMyASN: false },
-  { id: 'origin-13335', name: 'Cloudflare', asnNumber: 13335, stage: 'originASN', trafficGbps: 38, country: 'United States', state: 'California', city: 'San Francisco', inFlows: 0, outFlows: 2, isMyASN: false },
-  { id: 'origin-16509', name: 'Amazon', asnNumber: 16509, stage: 'originASN', trafficGbps: 32, country: 'United States', state: 'Washington', city: 'Seattle', inFlows: 0, outFlows: 2, isMyASN: false },
-  { id: 'origin-8075', name: 'Microsoft', asnNumber: 8075, stage: 'originASN', trafficGbps: 28, country: 'United States', state: 'Washington', city: 'Redmond', inFlows: 0, outFlows: 2, isMyASN: false },
-  { id: 'origin-32934', name: 'Meta', asnNumber: 32934, stage: 'originASN', trafficGbps: 22, country: 'United States', state: 'California', city: 'Menlo Park', inFlows: 0, outFlows: 1, isMyASN: false },
 
-  // Previous Peers (transit — in == out)
-  { id: 'prev-174', name: 'Cogent', asnNumber: 174, stage: 'previousPeer', trafficGbps: 69, country: 'United States', state: 'District of Columbia', city: 'Washington DC', inFlows: 3, outFlows: 2, isMyASN: false },
-  { id: 'prev-3356', name: 'Lumen', asnNumber: 3356, stage: 'previousPeer', trafficGbps: 38, country: 'United States', state: 'Colorado', city: 'Denver', inFlows: 2, outFlows: 2, isMyASN: false },
-  { id: 'prev-1299', name: 'Telia', asnNumber: 1299, stage: 'previousPeer', trafficGbps: 29, country: 'Sweden', state: 'Stockholm County', city: 'Stockholm', inFlows: 2, outFlows: 1, isMyASN: false },
-  { id: 'prev-6939', name: 'Hurricane', asnNumber: 6939, stage: 'previousPeer', trafficGbps: 29, country: 'United States', state: 'California', city: 'Fremont', inFlows: 2, outFlows: 2, isMyASN: false },
+  // ── Origin Protected Objects ──────────────────────────────────────────────
+  // Each PO is a specific IP prefix belonging to an Origin ASN.
+  { id: 'san-opo-15169-1', name: 'Google DNS Anycast', asnNumber: 15169, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 25, country: 'United States', state: 'California', city: 'Mountain View', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '8.8.4.0/24' },
+  { id: 'san-opo-15169-2', name: 'Google Web Services', asnNumber: 15169, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 20, country: 'United States', state: 'California', city: 'Mountain View', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '74.125.192.0/21' },
+  { id: 'san-opo-13335-1', name: 'CF DNS Resolver', asnNumber: 13335, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 22, country: 'United States', state: 'California', city: 'San Francisco', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '1.1.1.0/24' },
+  { id: 'san-opo-13335-2', name: 'CF CDN Edge', asnNumber: 13335, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 16, country: 'United States', state: 'California', city: 'San Francisco', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '104.16.0.0/14' },
+  { id: 'san-opo-16509-1', name: 'AWS East Coast', asnNumber: 16509, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 18, country: 'United States', state: 'Virginia', city: 'Ashburn', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '3.208.0.0/13' },
+  { id: 'san-opo-16509-2', name: 'AWS Global CDN', asnNumber: 16509, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 14, country: 'United States', state: 'Washington', city: 'Seattle', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '52.0.0.0/14' },
+  { id: 'san-opo-8075-1', name: 'Azure West US', asnNumber: 8075, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 15, country: 'United States', state: 'Washington', city: 'Redmond', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '13.64.0.0/11' },
+  { id: 'san-opo-8075-2', name: 'Azure Global', asnNumber: 8075, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 13, country: 'United States', state: 'Washington', city: 'Redmond', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '40.64.0.0/10' },
+  { id: 'san-opo-32934-1', name: 'FB Edge Servers', asnNumber: 32934, stage: 'originPO', nodeType: 'protectedObject', trafficGbps: 22, country: 'United States', state: 'California', city: 'Menlo Park', inFlows: 0, outFlows: 1, isMyASN: false, prefix: '31.13.24.0/21' },
 
-  // My ASNs (transit — in == out)
-  { id: 'my-64512', name: 'MyNet-Core', asnNumber: 64512, stage: 'myASN', trafficGbps: 75, country: 'United States', state: 'New York', city: 'New York', inFlows: 3, outFlows: 3, isMyASN: true },
-  { id: 'my-64513', name: 'MyNet-West', asnNumber: 64513, stage: 'myASN', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 2, isMyASN: true },
-  { id: 'my-64514', name: 'MyNet-EU', asnNumber: 64514, stage: 'myASN', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 2, outFlows: 2, isMyASN: true },
+  // ── Origin ASNs (sources) ─────────────────────────────────────────────────
+  { id: 'origin-15169', name: 'Google', asnNumber: 15169, stage: 'originASN', nodeType: 'asn', trafficGbps: 45, country: 'United States', state: 'California', city: 'Mountain View', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'origin-13335', name: 'Cloudflare', asnNumber: 13335, stage: 'originASN', nodeType: 'asn', trafficGbps: 38, country: 'United States', state: 'California', city: 'San Francisco', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'origin-16509', name: 'Amazon', asnNumber: 16509, stage: 'originASN', nodeType: 'asn', trafficGbps: 32, country: 'United States', state: 'Washington', city: 'Seattle', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'origin-8075', name: 'Microsoft', asnNumber: 8075, stage: 'originASN', nodeType: 'asn', trafficGbps: 28, country: 'United States', state: 'Washington', city: 'Redmond', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'origin-32934', name: 'Meta', asnNumber: 32934, stage: 'originASN', nodeType: 'asn', trafficGbps: 22, country: 'United States', state: 'California', city: 'Menlo Park', inFlows: 1, outFlows: 1, isMyASN: false },
 
-  // Next Peers (transit — in == out)
-  { id: 'next-2914', name: 'NTT', asnNumber: 2914, stage: 'nextPeer', trafficGbps: 65, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: false },
-  { id: 'next-7018', name: 'AT&T', asnNumber: 7018, stage: 'nextPeer', trafficGbps: 53, country: 'United States', state: 'Texas', city: 'Dallas', inFlows: 2, outFlows: 3, isMyASN: false },
-  { id: 'next-3257', name: 'GTT', asnNumber: 3257, stage: 'nextPeer', trafficGbps: 47, country: 'United States', state: 'Virginia', city: 'McLean', inFlows: 3, outFlows: 3, isMyASN: false },
+  // ── Previous Peers ─────────────────────────────────────────────────────────
+  { id: 'prev-174', name: 'Cogent', asnNumber: 174, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 69, country: 'United States', state: 'District of Columbia', city: 'Washington DC', inFlows: 3, outFlows: 2, isMyASN: false },
+  { id: 'prev-3356', name: 'Lumen', asnNumber: 3356, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 38, country: 'United States', state: 'Colorado', city: 'Denver', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'prev-1299', name: 'Telia', asnNumber: 1299, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 29, country: 'Sweden', state: 'Stockholm County', city: 'Stockholm', inFlows: 2, outFlows: 1, isMyASN: false },
+  { id: 'prev-6939', name: 'Hurricane', asnNumber: 6939, stage: 'previousPeer', nodeType: 'asn', trafficGbps: 29, country: 'United States', state: 'California', city: 'Fremont', inFlows: 2, outFlows: 2, isMyASN: false },
 
-  // Destination ASNs (sinks — inFlows only)
-  { id: 'dest-enterprise1', name: 'Enterprise-A', asnNumber: 65001, stage: 'destinationASN', trafficGbps: 45, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 0, isMyASN: false },
-  { id: 'dest-enterprise2', name: 'Enterprise-B', asnNumber: 65002, stage: 'destinationASN', trafficGbps: 45, country: 'United Kingdom', state: 'England', city: 'London', inFlows: 2, outFlows: 0, isMyASN: false },
-  { id: 'dest-enterprise3', name: 'Enterprise-C', asnNumber: 65003, stage: 'destinationASN', trafficGbps: 32, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 0, isMyASN: false },
-  { id: 'dest-enterprise4', name: 'Enterprise-D', asnNumber: 65004, stage: 'destinationASN', trafficGbps: 23, country: 'Japan', state: 'Tokyo', city: 'Tokyo', inFlows: 2, outFlows: 0, isMyASN: false },
-  { id: 'dest-enterprise5', name: 'Enterprise-E', asnNumber: 65005, stage: 'destinationASN', trafficGbps: 20, country: 'Australia', state: 'New South Wales', city: 'Sydney', inFlows: 1, outFlows: 0, isMyASN: false },
+  // ── My ASNs — marked expandable (click to drill into routers/interfaces) ───
+  { id: 'my-64512', name: 'MyNet-Core', asnNumber: 64512, stage: 'myASN', nodeType: 'asn', trafficGbps: 75, country: 'United States', state: 'New York', city: 'New York', inFlows: 3, outFlows: 3, isMyASN: true, expandable: true },
+  { id: 'my-64513', name: 'MyNet-West', asnNumber: 64513, stage: 'myASN', nodeType: 'asn', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 2, isMyASN: true, expandable: true },
+  { id: 'my-64514', name: 'MyNet-EU', asnNumber: 64514, stage: 'myASN', nodeType: 'asn', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 2, outFlows: 2, isMyASN: true, expandable: true },
+
+  // ── Next Peers ─────────────────────────────────────────────────────────────
+  { id: 'next-2914', name: 'NTT', asnNumber: 2914, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 65, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'next-7018', name: 'AT&T', asnNumber: 7018, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 53, country: 'United States', state: 'Texas', city: 'Dallas', inFlows: 2, outFlows: 3, isMyASN: false },
+  { id: 'next-3257', name: 'GTT', asnNumber: 3257, stage: 'nextPeer', nodeType: 'asn', trafficGbps: 47, country: 'United States', state: 'Virginia', city: 'McLean', inFlows: 3, outFlows: 3, isMyASN: false },
+
+  // ── Destination ASNs ───────────────────────────────────────────────────────
+  { id: 'dest-enterprise1', name: 'Enterprise-A', asnNumber: 65001, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 45, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'dest-enterprise2', name: 'Enterprise-B', asnNumber: 65002, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 45, country: 'United Kingdom', state: 'England', city: 'London', inFlows: 2, outFlows: 2, isMyASN: false },
+  { id: 'dest-enterprise3', name: 'Enterprise-C', asnNumber: 65003, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 32, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 1, isMyASN: false },
+  { id: 'dest-enterprise4', name: 'Enterprise-D', asnNumber: 65004, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 23, country: 'Japan', state: 'Tokyo', city: 'Tokyo', inFlows: 2, outFlows: 1, isMyASN: false },
+  { id: 'dest-enterprise5', name: 'Enterprise-E', asnNumber: 65005, stage: 'destinationASN', nodeType: 'asn', trafficGbps: 20, country: 'Australia', state: 'New South Wales', city: 'Sydney', inFlows: 1, outFlows: 1, isMyASN: false },
+
+  // ── Destination Protected Objects ──────────────────────────────────────────
+  { id: 'san-dpo-65001-1', name: 'EntA-NYC-Primary', asnNumber: 65001, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 28, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '192.0.2.0/24' },
+  { id: 'san-dpo-65001-2', name: 'EntA-NYC-Backup', asnNumber: 65001, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 17, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '192.0.3.0/24' },
+  { id: 'san-dpo-65002-1', name: 'EntB-London-Web', asnNumber: 65002, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 27, country: 'United Kingdom', state: 'England', city: 'London', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '198.51.100.0/24' },
+  { id: 'san-dpo-65002-2', name: 'EntB-London-API', asnNumber: 65002, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 18, country: 'United Kingdom', state: 'England', city: 'London', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '198.51.101.0/24' },
+  { id: 'san-dpo-65003-1', name: 'EntC-Frankfurt-DC', asnNumber: 65003, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 32, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '203.0.113.0/24' },
+  { id: 'san-dpo-65004-1', name: 'EntD-Tokyo-CDN', asnNumber: 65004, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 23, country: 'Japan', state: 'Tokyo', city: 'Tokyo', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '204.0.114.0/24' },
+  { id: 'san-dpo-65005-1', name: 'EntE-Sydney-Hub', asnNumber: 65005, stage: 'destinationPO', nodeType: 'protectedObject', trafficGbps: 20, country: 'Australia', state: 'New South Wales', city: 'Sydney', inFlows: 1, outFlows: 0, isMyASN: false, prefix: '205.0.115.0/24' },
 ];
 
-// Sankey links — flow-conserved: at every intermediate node, sum(in) == sum(out)
-// Total end-to-end traffic: 165 Gbps
-export const sankeyLinks: SankeyLink[] = [
-  // Origin → Previous Peer (total out: 165)
-  { source: 'origin-15169', target: 'prev-174', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+// ─── Sankey links ──────────────────────────────────────────────────────────────
+// Structured into subsets so ASNPathAnalysis can combine them based on expansion state.
+
+// Origin PO → Origin ASN (each PO fans into its parent ASN)
+export const poOriginLinks: SankeyLink[] = [
+  { source: 'san-opo-15169-1', target: 'origin-15169', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+  { source: 'san-opo-15169-2', target: 'origin-15169', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+  { source: 'san-opo-13335-1', target: 'origin-13335', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 85 } },
+  { source: 'san-opo-13335-2', target: 'origin-13335', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 78 } },
+  { source: 'san-opo-16509-1', target: 'origin-16509', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+  { source: 'san-opo-16509-2', target: 'origin-16509', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+  { source: 'san-opo-8075-1',  target: 'origin-8075',  value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+  { source: 'san-opo-8075-2',  target: 'origin-8075',  value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
+  { source: 'san-opo-32934-1', target: 'origin-32934', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+];
+
+// Origin ASN → Previous Peer (unchanged from original)
+export const originToPrevLinks: SankeyLink[] = [
+  { source: 'origin-15169', target: 'prev-174',  value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
   { source: 'origin-15169', target: 'prev-3356', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
-  { source: 'origin-13335', target: 'prev-174', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 85 } },
+  { source: 'origin-13335', target: 'prev-174',  value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 85 } },
   { source: 'origin-13335', target: 'prev-1299', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 78 } },
   { source: 'origin-16509', target: 'prev-3356', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
   { source: 'origin-16509', target: 'prev-6939', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
-  { source: 'origin-8075', target: 'prev-6939', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
-  { source: 'origin-8075', target: 'prev-1299', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
-  { source: 'origin-32934', target: 'prev-174', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+  { source: 'origin-8075',  target: 'prev-6939', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+  { source: 'origin-8075',  target: 'prev-1299', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
+  { source: 'origin-32934', target: 'prev-174',  value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+];
 
-  // Previous Peer → My ASN (Cogent: 69 in → 69 out, Lumen: 38→38, Telia: 29→29, Hurricane: 29→29)
-  { source: 'prev-174', target: 'my-64512', value: 38, trafficGbps: 38, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
-  { source: 'prev-174', target: 'my-64513', value: 31, trafficGbps: 31, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
-  { source: 'prev-3356', target: 'my-64512', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
-  { source: 'prev-3356', target: 'my-64513', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 80, name: 'HTTP', percent: 45 } },
-  { source: 'prev-1299', target: 'my-64514', value: 29, trafficGbps: 29, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
-  { source: 'prev-6939', target: 'my-64512', value: 15, trafficGbps: 15, topProtocol: 'UDP', topApplication: { port: 53, name: 'DNS', percent: 35 } },
-  { source: 'prev-6939', target: 'my-64514', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+// Previous Peer → My ASN (collapsed view only)
+export const prevToMyAsnLinks: Record<string, SankeyLink[]> = {
+  'my-64512': [
+    { source: 'prev-174',  target: 'my-64512', value: 38, trafficGbps: 38, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+    { source: 'prev-3356', target: 'my-64512', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+    { source: 'prev-6939', target: 'my-64512', value: 15, trafficGbps: 15, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 35 } },
+  ],
+  'my-64513': [
+    { source: 'prev-174',  target: 'my-64513', value: 31, trafficGbps: 31, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'prev-3356', target: 'my-64513', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 45 } },
+  ],
+  'my-64514': [
+    { source: 'prev-1299', target: 'my-64514', value: 29, trafficGbps: 29, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'prev-6939', target: 'my-64514', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+  ],
+};
 
-  // My ASN → Next Peer (Core: 75→75, West: 47→47, EU: 43→43)
-  { source: 'my-64512', target: 'next-2914', value: 35, trafficGbps: 35, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
-  { source: 'my-64512', target: 'next-7018', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
-  { source: 'my-64512', target: 'next-3257', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 22, name: 'SSH', percent: 28 } },
-  { source: 'my-64513', target: 'next-7018', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
-  { source: 'my-64513', target: 'next-3257', value: 19, trafficGbps: 19, topProtocol: 'UDP', topApplication: { port: 443, name: 'QUIC', percent: 42 } },
-  { source: 'my-64514', target: 'next-2914', value: 30, trafficGbps: 30, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
-  { source: 'my-64514', target: 'next-3257', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+// My ASN → Next Peer (collapsed view only)
+export const myAsnToNextLinks: Record<string, SankeyLink[]> = {
+  'my-64512': [
+    { source: 'my-64512', target: 'next-2914', value: 35, trafficGbps: 35, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'my-64512', target: 'next-7018', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+    { source: 'my-64512', target: 'next-3257', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
+  ],
+  'my-64513': [
+    { source: 'my-64513', target: 'next-7018', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    { source: 'my-64513', target: 'next-3257', value: 19, trafficGbps: 19, topProtocol: 'UDP', topApplication: { port: 443, name: 'QUIC',  percent: 42 } },
+  ],
+  'my-64514': [
+    { source: 'my-64514', target: 'next-2914', value: 30, trafficGbps: 30, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+    { source: 'my-64514', target: 'next-3257', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+  ],
+};
 
-  // Next Peer → Destination (NTT: 65→65, AT&T: 53→53, GTT: 47→47)
+// Next Peer → Destination ASN (unchanged)
+export const nextToDestLinks: SankeyLink[] = [
   { source: 'next-2914', target: 'dest-enterprise1', value: 33, trafficGbps: 33, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
   { source: 'next-2914', target: 'dest-enterprise3', value: 32, trafficGbps: 32, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
   { source: 'next-7018', target: 'dest-enterprise1', value: 12, trafficGbps: 12, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
   { source: 'next-7018', target: 'dest-enterprise2', value: 30, trafficGbps: 30, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
   { source: 'next-7018', target: 'dest-enterprise4', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
-  { source: 'next-3257', target: 'dest-enterprise2', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 80, name: 'HTTP', percent: 45 } },
-  { source: 'next-3257', target: 'dest-enterprise4', value: 12, trafficGbps: 12, topProtocol: 'UDP', topApplication: { port: 53, name: 'DNS', percent: 32 } },
+  { source: 'next-3257', target: 'dest-enterprise2', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 45 } },
+  { source: 'next-3257', target: 'dest-enterprise4', value: 12, trafficGbps: 12, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 32 } },
   { source: 'next-3257', target: 'dest-enterprise5', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+];
+
+// Destination ASN → Destination PO
+export const poDestLinks: SankeyLink[] = [
+  { source: 'dest-enterprise1', target: 'san-dpo-65001-1', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+  { source: 'dest-enterprise1', target: 'san-dpo-65001-2', value: 17, trafficGbps: 17, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+  { source: 'dest-enterprise2', target: 'san-dpo-65002-1', value: 27, trafficGbps: 27, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+  { source: 'dest-enterprise2', target: 'san-dpo-65002-2', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 45 } },
+  { source: 'dest-enterprise3', target: 'san-dpo-65003-1', value: 32, trafficGbps: 32, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+  { source: 'dest-enterprise4', target: 'san-dpo-65004-1', value: 23, trafficGbps: 23, topProtocol: 'UDP', topApplication: { port: 443, name: 'QUIC',  percent: 52 } },
+  { source: 'dest-enterprise5', target: 'san-dpo-65005-1', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+];
+
+// ─── Expanded My ASN nodes (ingress interface → router → egress interface) ────
+// Per-ASN record; used when that ASN is expanded in the Sankey.
+
+export const myAsnExpandedNodes: Record<string, SankeyNode[]> = {
+  // ── MyNet-Core (AS64512) — 75 G in / 75 G out ─────────────────────────────
+  // Routers: NYC-Core-01 (rtr-nyc-01) and NYC-Edge-01 (rtr-nyc-02)
+  'my-64512': [
+    // Ingress interfaces
+    { id: 'san-ing-64512-nyc01-eth00', name: 'Eth0/0', asnNumber: 64512, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 36, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'ingress' },
+    { id: 'san-ing-64512-nyc01-eth01', name: 'Eth0/1', asnNumber: 64512, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 25, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'ingress' },
+    { id: 'san-ing-64512-nyc02-ge00',  name: 'GigE0/0', asnNumber: 64512, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 14, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Edge-01', interfaceDir: 'ingress' },
+    // Routers
+    { id: 'san-rtr-64512-nyc01', name: 'NYC-Core-01', asnNumber: 64512, stage: 'myRouter', nodeType: 'router', trafficGbps: 61, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: true, parentAsnId: 'my-64512' },
+    { id: 'san-rtr-64512-nyc02', name: 'NYC-Edge-01', asnNumber: 64512, stage: 'myRouter', nodeType: 'router', trafficGbps: 14, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512' },
+    // Egress interfaces
+    { id: 'san-egr-64512-nyc01-eth10', name: 'Eth1/0', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 50, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 3, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'egress' },
+    { id: 'san-egr-64512-nyc01-eth11', name: 'Eth1/1', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 11, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'egress' },
+    { id: 'san-egr-64512-nyc02-ge01',  name: 'GigE0/1', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 14, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Edge-01', interfaceDir: 'egress' },
+  ],
+
+  // ── MyNet-West (AS64513) — 47 G in / 47 G out ─────────────────────────────
+  // Router: LAX-Core-01 (rtr-lax-01)
+  'my-64513': [
+    { id: 'san-ing-64513-lax01-te00', name: 'Te0/0',  asnNumber: 64513, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 28, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'ingress' },
+    { id: 'san-ing-64513-lax01-te01', name: 'Te0/1',  asnNumber: 64513, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 19, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'ingress' },
+    { id: 'san-rtr-64513-lax01',      name: 'LAX-Core-01', asnNumber: 64513, stage: 'myRouter', nodeType: 'router', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513' },
+    { id: 'san-egr-64513-lax01-te10', name: 'Te1/0',  asnNumber: 64513, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'egress' },
+  ],
+
+  // ── MyNet-EU (AS64514) — 43 G in / 43 G out ───────────────────────────────
+  // Router: FRA-Core-01 (rtr-fra-01)
+  'my-64514': [
+    { id: 'san-ing-64514-fra01-h00', name: 'Hu0/0', asnNumber: 64514, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64514', routerDisplayName: 'FRA-Core-01', interfaceDir: 'ingress' },
+    { id: 'san-rtr-64514-fra01',     name: 'FRA-Core-01', asnNumber: 64514, stage: 'myRouter', nodeType: 'router', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64514' },
+    { id: 'san-egr-64514-fra01-h01', name: 'Hu0/1', asnNumber: 64514, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64514', routerDisplayName: 'FRA-Core-01', interfaceDir: 'egress' },
+  ],
+};
+
+// ─── Expanded links per My ASN ─────────────────────────────────────────────────
+// Flow-conserved at every node. Replaces collapsed prevToMyAsnLinks/myAsnToNextLinks.
+
+export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
+  // ── MyNet-Core (AS64512) expanded links ────────────────────────────────────
+  // Ingress totals: Eth0/0=36, Eth0/1=25, GigE0/0=14 → total 75 ✓
+  // Router totals: NYC-Core-01=61, NYC-Edge-01=14 → total 75 ✓
+  // Egress totals: Eth1/0=50, Eth1/1=11, GigE0/1=14 → total 75 ✓
+  'my-64512': [
+    // Previous Peer → Ingress
+    { source: 'prev-174',  target: 'san-ing-64512-nyc01-eth00', value: 22, trafficGbps: 22, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'prev-174',  target: 'san-ing-64512-nyc01-eth01', value: 16, trafficGbps: 16, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'prev-3356', target: 'san-ing-64512-nyc01-eth00', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+    { source: 'prev-3356', target: 'san-ing-64512-nyc02-ge00',  value:  8, trafficGbps:  8, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+    { source: 'prev-6939', target: 'san-ing-64512-nyc01-eth01', value:  9, trafficGbps:  9, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 35 } },
+    { source: 'prev-6939', target: 'san-ing-64512-nyc02-ge00',  value:  6, trafficGbps:  6, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 38 } },
+    // Ingress → Router
+    { source: 'san-ing-64512-nyc01-eth00', target: 'san-rtr-64512-nyc01', value: 36, trafficGbps: 36, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+    { source: 'san-ing-64512-nyc01-eth01', target: 'san-rtr-64512-nyc01', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+    { source: 'san-ing-64512-nyc02-ge00',  target: 'san-rtr-64512-nyc02', value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
+    // Router → Egress
+    { source: 'san-rtr-64512-nyc01', target: 'san-egr-64512-nyc01-eth10', value: 50, trafficGbps: 50, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'san-rtr-64512-nyc01', target: 'san-egr-64512-nyc01-eth11', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
+    { source: 'san-rtr-64512-nyc02', target: 'san-egr-64512-nyc02-ge01',  value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
+    // Egress → Next Peer
+    // Eth1/0 (50G) → NTT 28 + AT&T 18 + GTT 4 = 50 ✓
+    { source: 'san-egr-64512-nyc01-eth10', target: 'next-2914', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+    { source: 'san-egr-64512-nyc01-eth10', target: 'next-7018', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+    { source: 'san-egr-64512-nyc01-eth10', target: 'next-3257', value:  4, trafficGbps:  4, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
+    // Eth1/1 (11G) → GTT 11 ✓
+    { source: 'san-egr-64512-nyc01-eth11', target: 'next-3257', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
+    // GigE0/1 (14G) → NTT 7 + AT&T 7 = 14 ✓
+    { source: 'san-egr-64512-nyc02-ge01', target: 'next-2914', value: 7, trafficGbps: 7, topProtocol: 'UDP', topApplication: { port: 53, name: 'DNS', percent: 35 } },
+    { source: 'san-egr-64512-nyc02-ge01', target: 'next-7018', value: 7, trafficGbps: 7, topProtocol: 'UDP', topApplication: { port: 53, name: 'DNS', percent: 35 } },
+  ],
+
+  // ── MyNet-West (AS64513) expanded links ────────────────────────────────────
+  // Ingress totals: Te0/0=28, Te0/1=19 → total 47 ✓
+  // Router: LAX-Core-01=47 ✓
+  // Egress: Te1/0=47 ✓
+  'my-64513': [
+    { source: 'prev-174',  target: 'san-ing-64513-lax01-te00', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'prev-174',  target: 'san-ing-64513-lax01-te01', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+    { source: 'prev-3356', target: 'san-ing-64513-lax01-te00', value: 10, trafficGbps: 10, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 45 } },
+    { source: 'prev-3356', target: 'san-ing-64513-lax01-te01', value:  6, trafficGbps:  6, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 42 } },
+    { source: 'san-ing-64513-lax01-te00', target: 'san-rtr-64513-lax01', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+    { source: 'san-ing-64513-lax01-te01', target: 'san-rtr-64513-lax01', value: 19, trafficGbps: 19, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 44 } },
+    { source: 'san-rtr-64513-lax01', target: 'san-egr-64513-lax01-te10', value: 47, trafficGbps: 47, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    // Te1/0 (47G) → AT&T 28 + GTT 19 = 47 ✓
+    { source: 'san-egr-64513-lax01-te10', target: 'next-7018', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    { source: 'san-egr-64513-lax01-te10', target: 'next-3257', value: 19, trafficGbps: 19, topProtocol: 'UDP', topApplication: { port: 443, name: 'QUIC',  percent: 42 } },
+  ],
+
+  // ── MyNet-EU (AS64514) expanded links ─────────────────────────────────────
+  // Ingress: Hu0/0=43 ✓  Router: FRA-Core-01=43 ✓  Egress: Hu0/1=43 ✓
+  'my-64514': [
+    { source: 'prev-1299', target: 'san-ing-64514-fra01-h00', value: 29, trafficGbps: 29, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'prev-6939', target: 'san-ing-64514-fra01-h00', value: 14, trafficGbps: 14, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+    { source: 'san-ing-64514-fra01-h00', target: 'san-rtr-64514-fra01',     value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'san-rtr-64514-fra01',     target: 'san-egr-64514-fra01-h01', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    // Hu0/1 (43G) → NTT 30 + GTT 13 = 43 ✓
+    { source: 'san-egr-64514-fra01-h01', target: 'next-2914', value: 30, trafficGbps: 30, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 75 } },
+    { source: 'san-egr-64514-fra01-h01', target: 'next-3257', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+  ],
+};
+
+// Backward-compat flat export (collapsed view, no PO layers) — kept so nothing else breaks
+export const sankeyLinks: SankeyLink[] = [
+  ...originToPrevLinks,
+  ...Object.values(prevToMyAsnLinks).flat(),
+  ...Object.values(myAsnToNextLinks).flat(),
+  ...nextToDestLinks,
 ];
 
 // Generate time series traffic data

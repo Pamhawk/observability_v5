@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
-import type { SankeyNode, SankeyLink, StageFilter } from '../../types';
+import type { SankeyNode, SankeyLink, StageFilter, SankeyStage } from '../../types';
 import styles from './SankeyDiagram.module.css';
 
 interface SankeyDiagramProps {
@@ -11,6 +11,8 @@ interface SankeyDiagramProps {
   onNodeClick?: (node: SankeyNode) => void;
   onLinkClick?: (link: SankeyLink) => void;
   onStageToggle?: (stage: string) => void;
+  onNodeToggleExpand?: (nodeId: string) => void;
+  expandedASNs?: Set<string>;
   width?: number;
   height?: number;
 }
@@ -22,22 +24,57 @@ interface TooltipData {
   y: number;
 }
 
-interface EChartsLabelParams {
-  name: string;
-}
-
 interface EChartsEventParams {
   dataType?: string;
   data?: { name?: string; source?: string; target?: string };
   event?: { event?: { clientX?: number; clientY?: number } };
 }
 
-const STAGE_DEPTH: Record<string, number> = {
-  originASN: 0,
-  previousPeer: 1,
-  myASN: 2,
-  nextPeer: 3,
-  destinationASN: 4,
+// ── Node colors by stage ───────────────────────────────────────────────────────
+const STAGE_COLORS: Record<SankeyStage, string> = {
+  originPO:           '#FED7AA', // soft orange (child of originASN)
+  originASN:          '#F97316', // orange
+  previousPeer:       '#8B5CF6', // purple
+  myASN:              '#14B8A6', // teal
+  myIngressInterface: '#99F6E4', // lightest teal
+  myRouter:           '#0E9F8E', // medium teal
+  myEgressInterface:  '#0D9488', // darkest teal
+  nextPeer:           '#3B82F6', // blue
+  destinationASN:     '#EC4899', // pink
+  destinationPO:      '#FBCFE8', // soft pink (child of destinationASN)
+};
+
+// ── Depth maps — compact (no expansion) vs expanded (any My ASN open) ────────
+const DEPTH_COMPACT: Record<SankeyStage, number> = {
+  originPO:           0,
+  originASN:          1,
+  previousPeer:       2,
+  myASN:              3,
+  myIngressInterface: 3, // unused in compact
+  myRouter:           4, // unused in compact
+  myEgressInterface:  5, // unused in compact
+  nextPeer:           4,
+  destinationASN:     5,
+  destinationPO:      6,
+};
+
+const DEPTH_EXPANDED: Record<SankeyStage, number> = {
+  originPO:           0,
+  originASN:          1,
+  previousPeer:       2,
+  myASN:              3, // collapsed My ASN nodes stay at 3, long-span link to nextPeer(6)
+  myIngressInterface: 3,
+  myRouter:           4,
+  myEgressInterface:  5,
+  nextPeer:           6,
+  destinationASN:     7,
+  destinationPO:      8,
+};
+
+// Label prefix by stage
+const STAGE_LABEL_PREFIX: Partial<Record<SankeyStage, string>> = {
+  myIngressInterface: '↓ ',
+  myEgressInterface:  '↑ ',
 };
 
 export function SankeyDiagram({
@@ -47,6 +84,8 @@ export function SankeyDiagram({
   onNodeClick,
   onLinkClick,
   onStageToggle,
+  onNodeToggleExpand,
+  expandedASNs = new Set(),
   width = 900,
   height = 500,
 }: SankeyDiagramProps) {
@@ -56,43 +95,68 @@ export function SankeyDiagram({
   // Keep refs for stable event handlers
   const nodesRef = useRef(nodes);
   const linksRef = useRef(links);
-  const stageFiltersRef = useRef(stageFilters);
   const onNodeClickRef = useRef(onNodeClick);
   const onLinkClickRef = useRef(onLinkClick);
+  const onNodeToggleExpandRef = useRef(onNodeToggleExpand);
+  const expandedASNsRef = useRef(expandedASNs);
 
   useEffect(() => {
     nodesRef.current = nodes;
     linksRef.current = links;
-    stageFiltersRef.current = stageFilters;
     onNodeClickRef.current = onNodeClick;
     onLinkClickRef.current = onLinkClick;
-  }, [nodes, links, stageFilters, onNodeClick, onLinkClick]);
+    onNodeToggleExpandRef.current = onNodeToggleExpand;
+    expandedASNsRef.current = expandedASNs;
+  }, [nodes, links, onNodeClick, onLinkClick, onNodeToggleExpand, expandedASNs]);
 
-  // Node lookup
   const nodeById = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
-  // ECharts node data — depth forces column position, itemStyle sets stage color
+  // Is any My ASN currently expanded? → determines which depth map to use
+  const anyExpanded = useMemo(
+    () => nodes.some(n =>
+      n.stage === 'myIngressInterface' ||
+      n.stage === 'myRouter' ||
+      n.stage === 'myEgressInterface'
+    ),
+    [nodes]
+  );
+  const depthMap = anyExpanded ? DEPTH_EXPANDED : DEPTH_COMPACT;
+
+  // ECharts node data
   const echartsNodes = useMemo(() =>
-    nodes.map(node => ({
-      name: node.id,
-      depth: STAGE_DEPTH[node.stage] ?? 0,
-      itemStyle: {
-        color: stageFilters.find(f => f.stage === node.stage)?.color ?? '#999',
-        borderRadius: 3,
-        borderWidth: 0,
-      },
-    })),
-    [nodes, stageFilters],
+    nodes.map(node => {
+      const stageColor = STAGE_COLORS[node.stage];
+      // Fall back to stageFilters color for the 5 main ASN stages if defined
+      const filterColor = stageFilters.find(f => f.stage === node.stage)?.color;
+      const color = filterColor ?? stageColor ?? '#999';
+
+      const prefix = STAGE_LABEL_PREFIX[node.stage] ?? '';
+      const expandIcon = node.expandable ? (expandedASNs.has(node.id) ? '' : ' ▶') : '';
+
+      return {
+        name: node.id,
+        depth: depthMap[node.stage] ?? 0,
+        itemStyle: {
+          color,
+          borderRadius: node.nodeType === 'protectedObject' ? 8 : 3,
+          borderWidth: node.nodeType === 'router' ? 2 : 0,
+          borderColor: node.nodeType === 'router' ? '#0a7a6e' : undefined,
+        },
+        label: {
+          formatter: () => `${prefix}${node.name}${expandIcon}`,
+        },
+      };
+    }),
+    [nodes, stageFilters, depthMap, expandedASNs]
   );
 
-  // ECharts link data
   const echartsLinks = useMemo(() =>
     links.map(link => ({
       source: link.source,
       target: link.target,
       value: link.value,
     })),
-    [links],
+    [links]
   );
 
   const enabledCount = stageFilters.filter(f => f.enabled).length;
@@ -116,10 +180,6 @@ export function SankeyDiagram({
         show: true,
         fontSize: 11,
         color: '#374151',
-        formatter: (params: EChartsLabelParams) => {
-          const node = nodesRef.current.find(n => n.id === params.name);
-          return node?.name || params.name;
-        },
       },
       nodeWidth: 20,
       nodeGap: 12,
@@ -131,7 +191,6 @@ export function SankeyDiagram({
     }],
   }), [echartsNodes, echartsLinks]);
 
-  // Helper: set cursor on both container and inner SVG (SVG renderer absorbs pointer events)
   const setCursor = (cursor: string) => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance) return;
@@ -141,101 +200,132 @@ export function SankeyDiagram({
     if (svg) (svg as SVGElement).style.cursor = cursor;
   };
 
-  // Stable event handlers via refs
   const onEvents = useMemo(() => ({
     click: (params: EChartsEventParams) => {
-      if (params.dataType === 'node') {
-        const node = nodesRef.current.find(n => n.id === params.data?.name);
-        if (node?.isMyASN && onNodeClickRef.current) {
-          onNodeClickRef.current(node);
+      if (params.dataType !== 'node') {
+        if (params.dataType === 'edge') {
+          const link = linksRef.current.find(
+            l => l.source === params.data?.source && l.target === params.data?.target
+          );
+          if (link && onLinkClickRef.current) onLinkClickRef.current(link);
         }
-      } else if (params.dataType === 'edge') {
-        const link = linksRef.current.find(
-          l => l.source === params.data?.source && l.target === params.data?.target
-        );
-        if (link && onLinkClickRef.current) {
-          onLinkClickRef.current(link);
-        }
+        return;
+      }
+
+      const node = nodesRef.current.find(n => n.id === params.data?.name);
+      if (!node) return;
+
+      if (node.expandable) {
+        // Collapsed My ASN → expand
+        onNodeToggleExpandRef.current?.(node.id);
+      } else if (node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface') {
+        // Clicking ingress/egress interface collapses the parent ASN
+        if (node.parentAsnId) onNodeToggleExpandRef.current?.(node.parentAsnId);
+      } else if (node.stage === 'myRouter') {
+        // Router click → open detail popup
+        onNodeClickRef.current?.(node);
       }
     },
+
     mouseover: (params: EChartsEventParams) => {
       const clientX = params.event?.event?.clientX ?? 0;
       const clientY = params.event?.event?.clientY ?? 0;
 
       if (params.dataType === 'node') {
         const node = nodesRef.current.find(n => n.id === params.data?.name);
-        setCursor(node?.isMyASN ? 'pointer' : 'default');
-        if (node) {
-          setTooltip({ type: 'node', data: node, x: clientX, y: clientY });
-        }
+        if (!node) return;
+
+        const isClickable =
+          node.expandable ||
+          node.stage === 'myRouter' ||
+          node.stage === 'myIngressInterface' ||
+          node.stage === 'myEgressInterface';
+        setCursor(isClickable ? 'pointer' : 'default');
+        setTooltip({ type: 'node', data: node, x: clientX, y: clientY });
+
       } else if (params.dataType === 'edge') {
         setCursor('pointer');
         const link = linksRef.current.find(
           l => l.source === params.data?.source && l.target === params.data?.target
         );
-        if (link) {
-          setTooltip({ type: 'link', data: link, x: clientX, y: clientY });
-        }
+        if (link) setTooltip({ type: 'link', data: link, x: clientX, y: clientY });
       }
     },
-    mouseout: () => {
-      setCursor('default');
-      setTooltip(null);
-    },
-    globalout: () => {
-      setCursor('default');
-      setTooltip(null);
-    },
-  }), []); // Stable — handlers use refs
 
+    mouseout: () => { setCursor('default'); setTooltip(null); },
+    globalout: () => { setCursor('default'); setTooltip(null); },
+  }), []);
+
+  // ── Tooltip rendering ────────────────────────────────────────────────────────
   const renderTooltip = () => {
     if (!tooltip) return null;
 
     if (tooltip.type === 'node') {
       const node = tooltip.data as SankeyNode;
+
+      // Determine action hint based on node type
+      let hint: string | null = null;
+      if (node.expandable) hint = 'Click to expand routers & interfaces';
+      else if (node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface') hint = 'Click to collapse';
+      else if (node.stage === 'myRouter') hint = 'Click for router details';
+
       return (
-        <div
-          className={styles.tooltip}
-          style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}
-        >
+        <div className={styles.tooltip} style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}>
           <div className={styles.tooltipHeader}>
-            {node.name} (AS{node.asnNumber})
+            {node.nodeType === 'protectedObject' ? `${node.name}` : node.name}
+            {node.asnNumber > 0 && node.nodeType === 'asn' && (
+              <span className={styles.tooltipAsn}> (AS{node.asnNumber})</span>
+            )}
           </div>
+
+          {node.prefix && (
+            <div className={styles.tooltipRow}>
+              <span>Prefix:</span>
+              <span className={styles.tooltipMono}>{node.prefix}</span>
+            </div>
+          )}
+
+          {(node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface') && (
+            <div className={styles.tooltipRow}>
+              <span>Router:</span>
+              <span>{node.routerDisplayName}</span>
+            </div>
+          )}
+
+          {(node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface') && (
+            <div className={styles.tooltipRow}>
+              <span>Direction:</span>
+              <span>{node.interfaceDir === 'ingress' ? '↓ Ingress' : '↑ Egress'}</span>
+            </div>
+          )}
+
           <div className={styles.tooltipRow}>
             <span>Traffic:</span>
             <span>{node.trafficGbps.toFixed(1)} Gbps</span>
           </div>
-          <div className={styles.tooltipRow}>
-            <span>Country:</span>
-            <span>{node.country}</span>
-          </div>
-          {node.state && (
+
+          {node.country && (
             <div className={styles.tooltipRow}>
-              <span>State:</span>
-              <span>{node.state}</span>
+              <span>Location:</span>
+              <span>{[node.city, node.country].filter(Boolean).join(', ')}</span>
             </div>
           )}
-          {node.city && (
-            <div className={styles.tooltipRow}>
-              <span>City:</span>
-              <span>{node.city}</span>
-            </div>
-          )}
-          {node.stage !== 'originASN' && (
+
+          {node.stage !== 'originASN' && node.stage !== 'originPO' && node.inFlows > 0 && (
             <div className={styles.tooltipRow}>
               <span>In Flows:</span>
               <span>{node.inFlows}</span>
             </div>
           )}
-          {node.stage !== 'destinationASN' && (
+
+          {node.stage !== 'destinationASN' && node.stage !== 'destinationPO' && node.outFlows > 0 && (
             <div className={styles.tooltipRow}>
               <span>Out Flows:</span>
               <span>{node.outFlows}</span>
             </div>
           )}
-          {node.isMyASN && (
-            <div className={styles.tooltipHint}>Click to view details</div>
-          )}
+
+          {hint && <div className={styles.tooltipHint}>{hint}</div>}
         </div>
       );
     }
@@ -246,12 +336,9 @@ export function SankeyDiagram({
       const targetNode = nodeById.get(link.target);
 
       return (
-        <div
-          className={styles.tooltip}
-          style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}
-        >
+        <div className={styles.tooltip} style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}>
           <div className={styles.tooltipHeader}>
-            {sourceNode?.name} ({sourceNode?.asnNumber}) → {targetNode?.name} ({targetNode?.asnNumber})
+            {sourceNode?.name} → {targetNode?.name}
           </div>
           <div className={styles.tooltipRow}>
             <span>Traffic:</span>
@@ -273,18 +360,15 @@ export function SankeyDiagram({
     return null;
   };
 
-  return (
-    <div className={styles.container}>
-      <ReactECharts
-        ref={chartRef}
-        option={option}
-        notMerge
-        style={{ width, height: height - 30 }}
-        opts={{ renderer: 'svg' }}
-        onEvents={onEvents}
-      />
-      {/* Legend — click to toggle stage visibility */}
+  // ── Legend ───────────────────────────────────────────────────────────────────
+  // Shows the 5 main stage filters + PO and interface indicators when relevant
+  const renderLegend = () => {
+    const hasPO = nodes.some(n => n.stage === 'originPO' || n.stage === 'destinationPO');
+    const hasExpanded = anyExpanded;
+
+    return (
       <div className={styles.legend}>
+        {/* Main stage toggles */}
         {stageFilters.map(f => {
           const canToggle = f.enabled ? enabledCount > 2 : true;
           return (
@@ -299,7 +383,47 @@ export function SankeyDiagram({
             </div>
           );
         })}
+
+        {/* Informational PO indicator */}
+        {hasPO && (
+          <div className={`${styles.legendItem} ${styles.legendItemInfo}`} title="Protected Object prefixes">
+            <span className={styles.legendDot} style={{ backgroundColor: '#FED7AA', border: '1px solid #F97316' }} />
+            <span className={styles.legendLabel}>Protected Objects</span>
+          </div>
+        )}
+
+        {/* Informational expanded interface indicator */}
+        {hasExpanded && (
+          <>
+            <div className={`${styles.legendItem} ${styles.legendItemInfo}`} title="Ingress interface (click to collapse)">
+              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myIngressInterface }} />
+              <span className={styles.legendLabel}>↓ Ingress</span>
+            </div>
+            <div className={`${styles.legendItem} ${styles.legendItemInfo}`} title="Router node (click for details)">
+              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myRouter }} />
+              <span className={styles.legendLabel}>Router</span>
+            </div>
+            <div className={`${styles.legendItem} ${styles.legendItemInfo}`} title="Egress interface (click to collapse)">
+              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myEgressInterface }} />
+              <span className={styles.legendLabel}>↑ Egress</span>
+            </div>
+          </>
+        )}
       </div>
+    );
+  };
+
+  return (
+    <div className={styles.container}>
+      <ReactECharts
+        ref={chartRef}
+        option={option}
+        notMerge
+        style={{ width, height: height - 30 }}
+        opts={{ renderer: 'svg' }}
+        onEvents={onEvents}
+      />
+      {renderLegend()}
       {renderTooltip()}
     </div>
   );

@@ -107,6 +107,13 @@ export interface SankeyNode {
   inFlows: number;
   outFlows: number;
   isMyASN: boolean;
+  // V6 additions
+  nodeType?: 'asn' | 'protectedObject' | 'router' | 'interface';
+  expandable?: boolean;          // true on collapsed My ASN nodes
+  prefix?: string;               // IP prefix for PO nodes (e.g. "192.0.2.0/24")
+  parentAsnId?: string;          // for ingress/router/egress: parent My ASN node ID
+  routerDisplayName?: string;    // for interface nodes: which router they belong to
+  interfaceDir?: 'ingress' | 'egress';
 }
 
 // Sankey diagram link
@@ -119,8 +126,18 @@ export interface SankeyLink {
   topApplication: TopPort;
 }
 
-// Sankey stages as defined in PRD
-export type SankeyStage = 'originASN' | 'previousPeer' | 'myASN' | 'nextPeer' | 'destinationASN';
+// Sankey stages as defined in PRD (V6: added PO and expanded My ASN sub-stages)
+export type SankeyStage =
+  | 'originPO'
+  | 'originASN'
+  | 'previousPeer'
+  | 'myASN'               // collapsed My ASN node
+  | 'myIngressInterface'  // expanded: ingress interface inside My ASN
+  | 'myRouter'            // expanded: router inside My ASN
+  | 'myEgressInterface'   // expanded: egress interface inside My ASN
+  | 'nextPeer'
+  | 'destinationASN'
+  | 'destinationPO';
 
 // Stage filter configuration
 export interface StageFilter {

@@ -16,6 +16,7 @@ interface MyASNPopupProps {
   isOpen: boolean;
   onClose: () => void;
   node: SankeyNode | null;
+  onCollapse?: (nodeId: string) => void; // collapses the ASN back to a single Sankey node
 }
 
 type TabType = 'routers' | 'traffic';
@@ -31,7 +32,7 @@ interface TreeItem {
   children?: TreeItem[];
 }
 
-export function MyASNPopup({ isOpen, onClose, node }: MyASNPopupProps) {
+export function MyASNPopup({ isOpen, onClose, node, onCollapse }: MyASNPopupProps) {
   const [activeTab, setActiveTab] = useState<TabType>('routers');
   const [direction, setDirection] = useState<TrafficDirection>('inbound');
   const [unit, setUnit] = useState<'bps' | 'pps'>('bps');
@@ -330,6 +331,15 @@ export function MyASNPopup({ isOpen, onClose, node }: MyASNPopupProps) {
           <h2>{node.name} (AS{node.asnNumber})</h2>
           <div className={styles.headerActions}>
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+            {onCollapse && node.parentAsnId && (
+              <button
+                className={styles.collapseBtn}
+                onClick={() => onCollapse(node.parentAsnId!)}
+                title="Collapse back to ASN node in diagram"
+              >
+                ◀ Collapse
+              </button>
+            )}
             <button className={styles.closeBtn} onClick={onClose}>
               <X size={20} />
             </button>

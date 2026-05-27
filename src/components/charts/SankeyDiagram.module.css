@@ -107,6 +107,29 @@
   font-style: italic;
 }
 
+.tooltipAsn {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.tooltipMono {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: var(--font-size-xs);
+  background: var(--color-bg-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Informational legend items (no toggle, no hover effect) */
+.legendItemInfo {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.legendItemInfo:hover {
+  background-color: transparent;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
