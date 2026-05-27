@@ -130,7 +130,7 @@ export function SankeyDiagram({
       nodeWidth: 20,
       nodeGap: 12,
       layoutIterations: 32,
-      left: 20, right: 20, top: 20, bottom: 10,
+      left: 80, right: 150, top: 20, bottom: 10,
     }],
   }), [echartsNodes, echartsLinks]);
 

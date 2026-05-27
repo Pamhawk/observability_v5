@@ -32,7 +32,7 @@
   position: relative;
   height: calc(100vh - 440px);
   min-height: 380px;
-  min-width: 1100px; /* enough room for 7 stages; scrolls on narrow viewports */
+  min-width: 1120px; /* enough room for 7 stages; scrolls on narrow viewports */
 }
 
 /* Floating download icon — visible only on hover */
