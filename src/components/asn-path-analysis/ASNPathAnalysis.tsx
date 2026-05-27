@@ -9,17 +9,14 @@ import { ASNPathTable } from './ASNPathTable';
 import {
   sankeyNodes,
   myAsnExpandedNodes,
-  poOriginLinks,
-  poPrevPeerLinks,
   originToPrevLinks,
-  prevToMyAsnLinks,
-  myAsnToNextLinks,
+  prevToUpstreamPOLinks,
+  upstreamPOToMyAsnLinks,
+  myAsnToDownstreamPOLinks,
+  downstreamPOToNextLinks,
   nextToDestLinks,
-  poNextPeerLinks,
-  poDestLinks,
   myAsnExpandedLinks,
   defaultStageFilters,
-  asnNodeIDsWithPOs,
 } from '../../data/mockData';
 import type { SankeyNode, SankeyLink, StageFilter, TimeRange, SankeyStage } from '../../types';
 import styles from './ASNPathAnalysis.module.css';
@@ -27,37 +24,27 @@ import styles from './ASNPathAnalysis.module.css';
 // My ASN sub-stages: visibility follows myASN filter
 const MY_ASN_SUB_STAGES = new Set(['myIngressInterface', 'myRouter', 'myEgressInterface']);
 
-// All independently-controlled stages (for filter dropdowns + bridging)
-const INDEPENDENT_STAGES = [
-  'originPO', 'originASN', 'previousPeerPO', 'previousPeer',
-  'myASN', 'nextPeer', 'nextPeerPO', 'destinationASN', 'destinationPO',
+// All independently-controlled stages (for filter dropdowns)
+const INDEPENDENT_STAGES: SankeyStage[] = [
+  'originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN',
 ];
 
-// Which PO stage corresponds to each ASN stage (for expand-icon visibility)
-const PO_STAGE_FOR_ASN: Partial<Record<string, string>> = {
-  originASN:      'originPO',
-  previousPeer:   'previousPeerPO',
-  nextPeer:       'nextPeerPO',
-  destinationASN: 'destinationPO',
-};
-
 // Ordered stage sequences for dynamic depth mapping
+// Flow: originASN → previousPeer → upstreamPO → myASN → downstreamPO → nextPeer → destinationASN
 const COMPACT_STAGE_ORDER: SankeyStage[] = [
-  'originPO', 'originASN', 'previousPeerPO', 'previousPeer',
-  'myASN',
-  'nextPeer', 'nextPeerPO', 'destinationASN', 'destinationPO',
+  'originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN',
 ];
 
 const EXPANDED_STAGE_ORDER: SankeyStage[] = [
-  'originPO', 'originASN', 'previousPeerPO', 'previousPeer',
+  'originASN', 'previousPeer', 'upstreamPO',
   'myIngressInterface', 'myRouter', 'myEgressInterface',
-  'nextPeer', 'nextPeerPO', 'destinationASN', 'destinationPO',
+  'downstreamPO', 'nextPeer', 'destinationASN',
 ];
 
 // PO stages only get a column when at least one node of that stage is actually present.
 // Without this guard, enabled-but-empty PO columns still get a depth slot, and ECharts
 // distributes all column widths evenly (including the empty ones), creating visual gaps.
-const PO_STAGES = new Set(['originPO', 'previousPeerPO', 'nextPeerPO', 'destinationPO']);
+const PO_STAGES = new Set<string>(['upstreamPO', 'downstreamPO']);
 
 function computeDynamicDepths(
   enabledStages: Set<string>,
@@ -158,8 +145,6 @@ export function ASNPathAnalysis() {
 
   // Which My ASN nodes are manually expanded (icon click)
   const [expandedASNs, setExpandedASNs] = useState<Set<string>>(new Set());
-  // Which ASN nodes have their PO layer expanded (PO icon click)
-  const [expandedPOs, setExpandedPOs] = useState<Set<string>>(new Set());
   // Which router/interface node IDs are "pinned" from the My ASN popup checkbox
   const [routerFilterSelections, setRouterFilterSelections] = useState<Set<string>>(new Set());
 
@@ -176,14 +161,6 @@ export function ASNPathAnalysis() {
 
   const handleToggleMyASNExpand = useCallback((nodeId: string) => {
     setExpandedASNs(prev => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
-      return next;
-    });
-  }, []);
-
-  const handleTogglePOExpand = useCallback((nodeId: string) => {
-    setExpandedPOs(prev => {
       const next = new Set(prev);
       if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
       return next;
@@ -210,7 +187,7 @@ export function ASNPathAnalysis() {
   // ── Build Sankey data ──────────────────────────────────────────────────────
   const computedSankeyData = useMemo(() => {
     const enabledStages = new Set(stageFilters.filter(f => f.enabled).map(f => f.stage));
-    const stageOn = (s: string) => enabledStages.has(s as never);
+    const stageOn = (s: string) => enabledStages.has(s);
 
     // A My ASN is expanded if manually expanded OR any of its sub-nodes are pinned
     const isMyAsnExpanded = (asnNodeId: string): boolean => {
@@ -224,10 +201,15 @@ export function ASNPathAnalysis() {
       return true;
     };
 
-    // ── Nodes ──────────────────────────────────────────────────────────────
+    // ── Nodes — two-pass ────────────────────────────────────────────────────
     const nodes: SankeyNode[] = [];
+    // Track which My ASN asnNumbers are visible (for PO node inclusion)
+    const visibleMyAsnNumbers = new Set<number>();
 
+    // Pass 1: build non-PO nodes
     for (const node of sankeyNodes) {
+      if (node.stage === 'upstreamPO' || node.stage === 'downstreamPO') continue;
+
       // Sub-stages of myASN follow the myASN filter
       const stageEnabled = MY_ASN_SUB_STAGES.has(node.stage)
         ? stageOn('myASN') : stageOn(node.stage);
@@ -235,68 +217,69 @@ export function ASNPathAnalysis() {
       if (!passesFilter(node)) continue;
 
       if (node.stage === 'myASN') {
+        visibleMyAsnNumbers.add(node.asnNumber);
         if (isMyAsnExpanded(node.id)) {
           nodes.push(...(myAsnExpandedNodes[node.id] ?? []));
         } else {
           nodes.push(node);
         }
-      } else if (node.stage === 'originPO') {
-        const anyExpanded = poOriginLinks.some(l => l.source === node.id && expandedPOs.has(l.target));
-        if (anyExpanded) nodes.push(node);
-      } else if (node.stage === 'previousPeerPO') {
-        const anyExpanded = poPrevPeerLinks.some(l => l.source === node.id && expandedPOs.has(l.target));
-        if (anyExpanded) nodes.push(node);
-      } else if (node.stage === 'nextPeerPO') {
-        const anyExpanded = poNextPeerLinks.some(l => l.target === node.id && expandedPOs.has(l.source));
-        if (anyExpanded) nodes.push(node);
-      } else if (node.stage === 'destinationPO') {
-        const anyExpanded = poDestLinks.some(l => l.target === node.id && expandedPOs.has(l.source));
-        if (anyExpanded) nodes.push(node);
       } else {
         nodes.push(node);
       }
     }
 
-    // ── Links ──────────────────────────────────────────────────────────────
-    const allLinks: SankeyLink[] = [];
-
-    // Origin PO → Origin ASN (only for expanded ASNs)
-    if (stageOn('originPO')) {
-      allLinks.push(...poOriginLinks.filter(l => expandedPOs.has(l.target)));
+    // Pass 2: add PO nodes only for visible My ASNs
+    // upstreamPO: sits between previousPeer and myASN
+    if (stageOn('upstreamPO')) {
+      for (const node of sankeyNodes) {
+        if (node.stage === 'upstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
+          nodes.push(node);
+        }
+      }
     }
-
-    allLinks.push(...originToPrevLinks);
-
-    // Prev Peer PO → Prev Peer (only for expanded prev peers)
-    if (stageOn('previousPeerPO')) {
-      allLinks.push(...poPrevPeerLinks.filter(l => expandedPOs.has(l.target)));
-    }
-
-    // Prev Peer ↔ My ASN (collapsed or expanded per-ASN)
-    if (stageOn('myASN')) {
-      for (const asnNode of sankeyNodes.filter(n => n.stage === 'myASN')) {
-        const f = stageFilters.find(x => x.stage === 'myASN');
-        if (f?.selectedASNs.length && !f.selectedASNs.includes(asnNode.asnNumber)) continue;
-        if (isMyAsnExpanded(asnNode.id)) {
-          allLinks.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
-        } else {
-          allLinks.push(...(prevToMyAsnLinks[asnNode.id] ?? []));
-          allLinks.push(...(myAsnToNextLinks[asnNode.id] ?? []));
+    // downstreamPO: sits between myASN and nextPeer
+    if (stageOn('downstreamPO')) {
+      for (const node of sankeyNodes) {
+        if (node.stage === 'downstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
+          nodes.push(node);
         }
       }
     }
 
+    // ── Links ──────────────────────────────────────────────────────────────
+    // Always add all structural links; the bridge function handles routing around
+    // any hidden nodes (disabled stages, filtered-out ASNs, etc.)
+    const allLinks: SankeyLink[] = [];
+
+    // Origin → Previous Peer
+    allLinks.push(...originToPrevLinks);
+
+    // Previous Peer → Upstream PO
+    // (if upstreamPO is disabled or its nodes are filtered out, bridge creates prev→myASN)
+    allLinks.push(...prevToUpstreamPOLinks);
+
+    // My ASN connections (collapsed vs expanded, per-ASN)
+    for (const asnNode of sankeyNodes.filter(n => n.stage === 'myASN')) {
+      const f = stageFilters.find(x => x.stage === 'myASN');
+      if (f?.selectedASNs.length && !f.selectedASNs.includes(asnNode.asnNumber)) continue;
+
+      if (stageOn('myASN') && isMyAsnExpanded(asnNode.id)) {
+        // Expanded view: upstreamPO → ingress → router → egress → downstreamPO
+        allLinks.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
+      } else {
+        // Collapsed view: upstreamPO → myASN → downstreamPO
+        // (if myASN stage is disabled, bridge creates upstreamPO→downstreamPO through hidden myASN)
+        allLinks.push(...upstreamPOToMyAsnLinks.filter(l => l.target === asnNode.id));
+        allLinks.push(...myAsnToDownstreamPOLinks.filter(l => l.source === asnNode.id));
+      }
+    }
+
+    // Downstream PO → Next Peer
+    // (if downstreamPO is disabled, bridge creates myASN→nextPeer)
+    allLinks.push(...downstreamPOToNextLinks);
+
+    // Next Peer → Destination
     allLinks.push(...nextToDestLinks);
-
-    // Next Peer → Next Peer PO (only for expanded next peers)
-    if (stageOn('nextPeerPO')) {
-      allLinks.push(...poNextPeerLinks.filter(l => expandedPOs.has(l.source)));
-    }
-
-    // Dest ASN → Dest PO (only for expanded dest ASNs)
-    if (stageOn('destinationPO')) {
-      allLinks.push(...poDestLinks.filter(l => expandedPOs.has(l.source)));
-    }
 
     // ── Bridge hidden nodes ────────────────────────────────────────────────
     const nodeIds = new Set(nodes.map(n => n.id));
@@ -316,9 +299,9 @@ export function ASNPathAnalysis() {
     const dynamicDepths = computeDynamicDepths(enabledStages, anyExpanded, presentStages);
 
     return { nodes, links: validLinks, dynamicDepths };
-  }, [stageFilters, expandedASNs, expandedPOs, routerFilterSelections]);
+  }, [stageFilters, expandedASNs, routerFilterSelections]);
 
-  // Nodes for StageFilters dropdown options (all independently-controlled stages)
+  // Nodes for StageFilters dropdown options
   const asnNodesForFilters = useMemo(
     () => sankeyNodes.filter(n => INDEPENDENT_STAGES.includes(n.stage)),
     [],
@@ -394,11 +377,7 @@ export function ASNPathAnalysis() {
               onLinkClick={handleLinkClick}
               onStageToggle={handleStageToggle}
               onNodeToggleExpand={handleToggleMyASNExpand}
-              onTogglePOExpand={handleTogglePOExpand}
               expandedASNs={expandedASNs}
-              expandedPOs={expandedPOs}
-              asnNodesWithPOs={asnNodeIDsWithPOs}
-              poStageForAsn={PO_STAGE_FOR_ASN}
               dynamicDepths={computedSankeyData.dynamicDepths}
               width={chartSize.width}
               height={chartSize.height}

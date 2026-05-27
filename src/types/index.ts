@@ -126,20 +126,19 @@ export interface SankeyLink {
   topApplication: TopPort;
 }
 
-// Sankey stages as defined in PRD (V6: added PO and expanded My ASN sub-stages)
+// Sankey stages (V6 final: POs are customer-owned prefixes, always adjacent to My ASN)
+// Flow: originASN → previousPeer → [upstreamPO →] myASN [→ downstreamPO] → nextPeer → destinationASN
 export type SankeyStage =
-  | 'originPO'
   | 'originASN'
-  | 'previousPeerPO'      // PO node belonging to a Previous Peer ASN
   | 'previousPeer'
+  | 'upstreamPO'          // customer's protected prefixes on the ingress side (between prevPeer and myASN)
   | 'myASN'               // collapsed My ASN node
   | 'myIngressInterface'  // expanded: ingress interface inside My ASN
   | 'myRouter'            // expanded: router inside My ASN
   | 'myEgressInterface'   // expanded: egress interface inside My ASN
+  | 'downstreamPO'        // customer's protected prefixes on the egress side (between myASN and nextPeer)
   | 'nextPeer'
-  | 'nextPeerPO'          // PO node belonging to a Next Peer ASN
-  | 'destinationASN'
-  | 'destinationPO';
+  | 'destinationASN';
 
 // Stage filter configuration
 export interface StageFilter {

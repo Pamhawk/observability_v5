@@ -13,14 +13,7 @@ interface SankeyDiagramProps {
   onStageToggle?: (stage: string) => void;
   /** Called when the My-ASN expand/collapse icon is clicked */
   onNodeToggleExpand?: (nodeId: string) => void;
-  /** Called when a PO expand/collapse icon is clicked */
-  onTogglePOExpand?: (nodeId: string) => void;
   expandedASNs?: Set<string>;
-  expandedPOs?: Set<string>;
-  /** Set of ASN node IDs that have PO children */
-  asnNodesWithPOs?: Set<string>;
-  /** Maps ASN stage → its PO stage (used to check if PO stage is enabled) */
-  poStageForAsn?: Partial<Record<string, string>>;
   /** Pre-computed column depths from parent */
   dynamicDepths?: Record<string, number>;
   width?: number;
@@ -46,18 +39,16 @@ interface NodeLayout {
 
 // ── Node colors by stage ───────────────────────────────────────────────────
 const STAGE_COLORS: Record<SankeyStage, string> = {
-  originPO:           '#FED7AA',
   originASN:          '#F97316',
-  previousPeerPO:     '#DDD6FE',
   previousPeer:       '#8B5CF6',
+  upstreamPO:         '#6EE7B7',
   myASN:              '#14B8A6',
   myIngressInterface: '#99F6E4',
   myRouter:           '#0E9F8E',
   myEgressInterface:  '#0D9488',
+  downstreamPO:       '#5EEAD4',
   nextPeer:           '#3B82F6',
-  nextPeerPO:         '#BFDBFE',
   destinationASN:     '#EC4899',
-  destinationPO:      '#FBCFE8',
 };
 
 // Label prefix by stage
@@ -74,11 +65,7 @@ export function SankeyDiagram({
   onLinkClick,
   onStageToggle,
   onNodeToggleExpand,
-  onTogglePOExpand,
   expandedASNs = new Set(),
-  expandedPOs = new Set(),
-  asnNodesWithPOs = new Set(),
-  poStageForAsn = {},
   dynamicDepths = {},
   width = 900,
   height = 500,
@@ -93,7 +80,6 @@ export function SankeyDiagram({
   const onNodeClickRef = useRef(onNodeClick);
   const onLinkClickRef = useRef(onLinkClick);
   const onNodeToggleExpandRef = useRef(onNodeToggleExpand);
-  const onTogglePOExpandRef = useRef(onTogglePOExpand);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -101,8 +87,7 @@ export function SankeyDiagram({
     onNodeClickRef.current = onNodeClick;
     onLinkClickRef.current = onLinkClick;
     onNodeToggleExpandRef.current = onNodeToggleExpand;
-    onTogglePOExpandRef.current = onTogglePOExpand;
-  }, [nodes, links, onNodeClick, onLinkClick, onNodeToggleExpand, onTogglePOExpand]);
+  }, [nodes, links, onNodeClick, onLinkClick, onNodeToggleExpand]);
 
   const nodeById = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
@@ -282,32 +267,6 @@ export function SankeyDiagram({
           </button>,
         );
       }
-
-      // ── PO expand/collapse icon (on ASN nodes that have POs) ───────────
-      if (asnNodesWithPOs.has(node.id)) {
-        // Only show if the corresponding PO stage is enabled
-        const poStage = poStageForAsn[node.stage];
-        const poStageEnabled = poStage
-          ? stageFilters.some(f => f.stage === poStage && f.enabled)
-          : false;
-        if (!poStageEnabled) continue;
-
-        const isExpanded = expandedPOs.has(node.id);
-        // Position below the My ASN expand icon (or at bottom if no My ASN icon)
-        const bottomY = layout.y + layout.height - 16;
-        icons.push(
-          <button
-            key={`po-${node.id}`}
-            className={`${styles.iconBtn} ${styles.iconBtnPO}`}
-            style={{ left: right, top: Math.max(layout.y, bottomY) }}
-            title={isExpanded ? 'Collapse POs' : 'Expand Protected Objects'}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onTogglePOExpandRef.current?.(node.id); }}
-          >
-            {isExpanded ? '▲' : '▼'}
-          </button>,
-        );
-      }
     }
 
     return icons;
@@ -322,9 +281,6 @@ export function SankeyDiagram({
       let hint: string | null = null;
       if (node.expandable) hint = 'Click ▶ to expand routers & interfaces';
       else if (node.stage === 'myRouter') hint = 'Click node for details · ✕ to collapse';
-      else if (node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface')
-        hint = 'Click node for details';
-      else if (asnNodesWithPOs.has(node.id)) hint = 'Click ▼ to expand Protected Objects';
       else hint = 'Click node for details';
 
       return (
@@ -361,10 +317,10 @@ export function SankeyDiagram({
               <span>{[node.city, node.country].filter(Boolean).join(', ')}</span>
             </div>
           )}
-          {node.stage !== 'originASN' && node.stage !== 'originPO' && node.inFlows > 0 && (
+          {node.stage !== 'originASN' && node.inFlows > 0 && (
             <div className={styles.tooltipRow}><span>In Flows:</span><span>{node.inFlows}</span></div>
           )}
-          {node.stage !== 'destinationASN' && node.stage !== 'destinationPO' && node.outFlows > 0 && (
+          {node.stage !== 'destinationASN' && node.outFlows > 0 && (
             <div className={styles.tooltipRow}><span>Out Flows:</span><span>{node.outFlows}</span></div>
           )}
           {hint && <div className={styles.tooltipHint}>{hint}</div>}
@@ -401,8 +357,7 @@ export function SankeyDiagram({
 
   const renderLegend = () => {
     const hasPO = nodes.some(n =>
-      n.stage === 'originPO' || n.stage === 'destinationPO' ||
-      n.stage === 'previousPeerPO' || n.stage === 'nextPeerPO',
+      n.stage === 'upstreamPO' || n.stage === 'downstreamPO',
     );
     // Only show the 5 main ASN stage toggles in legend; PO / sub-stage info items are contextual
     const mainFilters = stageFilters.filter(f =>
@@ -427,7 +382,7 @@ export function SankeyDiagram({
         })}
         {hasPO && (
           <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-            <span className={styles.legendDot} style={{ backgroundColor: '#FED7AA', border: '1px solid #F97316' }} />
+            <span className={styles.legendDot} style={{ backgroundColor: '#6EE7B7', border: '1px solid #14B8A6' }} />
             <span className={styles.legendLabel}>Protected Objects</span>
           </div>
         )}
