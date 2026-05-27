@@ -161,8 +161,18 @@ export const sankeyNodes: SankeyNode[] = [
 ];
 
 // ─── Sankey links ──────────────────────────────────────────────────────────────
-// POs always sit adjacent to My ASN.
-// Full flow: originASN → previousPeer → upstreamPO → myASN → downstreamPO → nextPeer → destinationASN
+// Traffic is modelled as a directed graph, not a strict pipeline.
+// The column order (originASN → prevPeer → upstreamPO → myASN → downstreamPO → nextPeer → destASN)
+// defines LEFT-TO-RIGHT depth, but any node can connect to any node at a higher depth —
+// flows can skip stages (like the UK energy Sankey where links jump across columns).
+//
+// Non-standard paths captured in the data:
+//   • origin   ──────────────────────────────▶ upstreamPO  (skips prevPeer)
+//   • prevPeer ───────────────────────────────────────────▶ myASN  (skips upstreamPO)
+//   • myASN    ─────────────────────────────────────────────────────▶ nextPeer  (skips downstreamPO)
+//   • downstreamPO ──────────────────────────────────────────────────────────────▶ destASN (skips nextPeer)
+//   • upstreamPO with no prevPeer incoming  (acts as flow origin)
+//   • downstreamPO with no nextPeer outgoing  (acts as flow sink)
 
 // Origin ASN → Previous Peer
 export const originToPrevLinks: SankeyLink[] = [
@@ -223,7 +233,7 @@ export const downstreamPOToNextLinks: SankeyLink[] = [
   { source: 'san-dpo-64514-1', target: 'next-3257', value: 13, trafficGbps: 13, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
 ];
 
-// Next Peer → Destination ASN (unchanged)
+// Next Peer → Destination ASN
 export const nextToDestLinks: SankeyLink[] = [
   { source: 'next-2914', target: 'dest-enterprise1', value: 33, trafficGbps: 33, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
   { source: 'next-2914', target: 'dest-enterprise3', value: 32, trafficGbps: 32, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
@@ -233,6 +243,50 @@ export const nextToDestLinks: SankeyLink[] = [
   { source: 'next-3257', target: 'dest-enterprise2', value: 15, trafficGbps: 15, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 45 } },
   { source: 'next-3257', target: 'dest-enterprise4', value: 12, trafficGbps: 12, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 32 } },
   { source: 'next-3257', target: 'dest-enterprise5', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
+];
+
+// ── Non-linear / skip-stage paths ─────────────────────────────────────────────
+// These represent real network scenarios where traffic takes shorter or longer paths
+// than the full pipeline. ECharts renders these as arcs that "jump" across columns.
+
+// Origin ASN → Upstream PO directly (skipping Previous Peer)
+// e.g. an origin that has a direct peering arrangement with the customer's prefix
+// — traffic enters the protected prefix without transiting an intermediate provider.
+export const originToUpstreamPOLinks: SankeyLink[] = [
+  // Meta has a direct connection into NYC-Hosting (prefixes announced directly)
+  { source: 'origin-32934', target: 'san-upo-64512-2', value: 10, trafficGbps: 10, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 78 } },
+  // Amazon reaches FRA-Enterprise directly (transatlantic direct peering)
+  { source: 'origin-16509', target: 'san-upo-64514-1', value:  8, trafficGbps:  8, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
+];
+
+// Previous Peer → My ASN directly (skipping Upstream PO)
+// e.g. transit traffic that is NOT destined for a protected prefix —
+// it enters the customer network without being matched to any PO.
+export const prevToMyAsnDirectLinks: SankeyLink[] = [
+  // Telia carries some non-PO transit traffic directly into MyNet-Core
+  { source: 'prev-1299', target: 'my-64512', value:  8, trafficGbps:  8, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 52 } },
+  // Hurricane Electric delivers some traffic to MyNet-EU without PO matching
+  { source: 'prev-6939', target: 'my-64514', value:  6, trafficGbps:  6, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 44 } },
+];
+
+// My ASN → Next Peer directly (skipping Downstream PO)
+// e.g. traffic originating inside the customer network that exits without going
+// through a monitored/protected egress prefix.
+export const myAsnToNextDirectLinks: SankeyLink[] = [
+  // MyNet-Core sends some traffic to NTT that bypasses the CDN-Out PO
+  { source: 'my-64512', target: 'next-2914', value:  7, trafficGbps:  7, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 55 } },
+  // MyNet-EU exits directly to GTT for some flows
+  { source: 'my-64514', target: 'next-3257', value:  6, trafficGbps:  6, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 60 } },
+];
+
+// Downstream PO → Destination ASN directly (skipping Next Peer)
+// e.g. the protected egress prefix has a direct route to the final destination
+// without any additional transit hop.
+export const downstreamPOToDestLinks: SankeyLink[] = [
+  // NYC-CDN-Out has a direct peering route to Enterprise-D (Japan)
+  { source: 'san-dpo-64512-1', target: 'dest-enterprise4', value: 8, trafficGbps: 8, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
+  // FRA-EU-Out connects directly to Enterprise-B (London)
+  { source: 'san-dpo-64514-1', target: 'dest-enterprise2', value: 7, trafficGbps: 7, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
 ];
 
 
@@ -330,13 +384,17 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
   ],
 };
 
-// Backward-compat flat export (full collapsed view) — kept so nothing else breaks
+// Flat export — all links in the collapsed view (used by other consumers)
 export const sankeyLinks: SankeyLink[] = [
   ...originToPrevLinks,
+  ...originToUpstreamPOLinks,
   ...prevToUpstreamPOLinks,
+  ...prevToMyAsnDirectLinks,
   ...upstreamPOToMyAsnLinks,
   ...myAsnToDownstreamPOLinks,
+  ...myAsnToNextDirectLinks,
   ...downstreamPOToNextLinks,
+  ...downstreamPOToDestLinks,
   ...nextToDestLinks,
 ];
 

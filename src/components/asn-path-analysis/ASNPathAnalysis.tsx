@@ -10,10 +10,14 @@ import {
   sankeyNodes,
   myAsnExpandedNodes,
   originToPrevLinks,
+  originToUpstreamPOLinks,
   prevToUpstreamPOLinks,
+  prevToMyAsnDirectLinks,
   upstreamPOToMyAsnLinks,
   myAsnToDownstreamPOLinks,
+  myAsnToNextDirectLinks,
   downstreamPOToNextLinks,
+  downstreamPOToDestLinks,
   nextToDestLinks,
   myAsnExpandedLinks,
   defaultStageFilters,
@@ -247,39 +251,42 @@ export function ASNPathAnalysis() {
     }
 
     // ── Links ──────────────────────────────────────────────────────────────
-    // Always add all structural links; the bridge function handles routing around
-    // any hidden nodes (disabled stages, filtered-out ASNs, etc.)
+    // Traffic is a directed graph, not a strict pipeline — any node can connect
+    // to any node at a higher stage depth. We add ALL link pools here; the bridge
+    // function handles disabled/hidden stages by creating transitive connections.
     const allLinks: SankeyLink[] = [];
 
-    // Origin → Previous Peer
+    // ── Standard paths ──────────────────────────────────────────────────
     allLinks.push(...originToPrevLinks);
-
-    // Previous Peer → Upstream PO
-    // (if upstreamPO is disabled or its nodes are filtered out, bridge creates prev→myASN)
     allLinks.push(...prevToUpstreamPOLinks);
+    allLinks.push(...downstreamPOToNextLinks);
+    allLinks.push(...nextToDestLinks);
 
-    // My ASN connections (collapsed vs expanded, per-ASN)
+    // ── Skip-stage paths (non-linear flows) ─────────────────────────────
+    // Origin → UpstreamPO directly (bypasses prevPeer)
+    allLinks.push(...originToUpstreamPOLinks);
+    // PrevPeer → MyASN directly (bypasses upstreamPO)
+    allLinks.push(...prevToMyAsnDirectLinks);
+    // MyASN → NextPeer directly (bypasses downstreamPO)
+    allLinks.push(...myAsnToNextDirectLinks);
+    // DownstreamPO → DestASN directly (bypasses nextPeer)
+    allLinks.push(...downstreamPOToDestLinks);
+
+    // ── My ASN internal links (collapsed vs expanded per-ASN) ────────────
     for (const asnNode of sankeyNodes.filter(n => n.stage === 'myASN')) {
       const f = stageFilters.find(x => x.stage === 'myASN');
       if (f?.selectedASNs.length && !f.selectedASNs.includes(asnNode.asnNumber)) continue;
 
       if (stageOn('myASN') && isMyAsnExpanded(asnNode.id)) {
-        // Expanded view: upstreamPO → ingress → router → egress → downstreamPO
+        // Expanded: upstreamPO → ingress → router → egress → downstreamPO
         allLinks.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
       } else {
-        // Collapsed view: upstreamPO → myASN → downstreamPO
-        // (if myASN stage is disabled, bridge creates upstreamPO→downstreamPO through hidden myASN)
+        // Collapsed: upstreamPO → myASN → downstreamPO
+        // If myASN stage is disabled, bridge threads through hidden myASN node
         allLinks.push(...upstreamPOToMyAsnLinks.filter(l => l.target === asnNode.id));
         allLinks.push(...myAsnToDownstreamPOLinks.filter(l => l.source === asnNode.id));
       }
     }
-
-    // Downstream PO → Next Peer
-    // (if downstreamPO is disabled, bridge creates myASN→nextPeer)
-    allLinks.push(...downstreamPOToNextLinks);
-
-    // Next Peer → Destination
-    allLinks.push(...nextToDestLinks);
 
     // ── Bridge hidden nodes ────────────────────────────────────────────────
     const nodeIds = new Set(nodes.map(n => n.id));
