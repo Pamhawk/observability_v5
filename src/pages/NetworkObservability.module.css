@@ -3,6 +3,7 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  overflow-x: auto; /* allows chart to scroll horizontally on narrow viewports */
 }
 
 .header {
