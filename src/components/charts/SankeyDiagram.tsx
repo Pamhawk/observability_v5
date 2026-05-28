@@ -108,7 +108,8 @@ export function SankeyDiagram({
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
-          color:        isPO ? 'transparent' : color,
+          // 'rgba(0,0,0,0)' is safer than 'transparent' in the ECharts SVG renderer
+          color:        isPO ? 'rgba(0,0,0,0)' : color,
           borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : 3),
           borderWidth:  isPO ? 3 : (node.nodeType === 'router' ? 2 : 0),
           borderColor:  isPO ? color : (node.nodeType === 'router' ? '#0a7a6e' : undefined),
@@ -120,10 +121,23 @@ export function SankeyDiagram({
     [nodes, stageFilters, dynamicDepths],
   );
 
-  const echartsLinks = useMemo(() =>
-    links.map(l => ({ source: l.source, target: l.target, value: l.value })),
-    [links],
-  );
+  const echartsLinks = useMemo(() => {
+    // PO nodes are transparent, so links connected to them must not use the PO
+    // node colour for the gradient — use the solid (non-PO) endpoint instead.
+    const poIds = new Set(nodes.filter(n => n.nodeType === 'protectedObject').map(n => n.id));
+
+    return links.map(l => {
+      const srcIsPO = poIds.has(l.source);
+      const dstIsPO = poIds.has(l.target);
+
+      let lineStyle: { color: string } | undefined;
+      if (srcIsPO && !dstIsPO) lineStyle = { color: 'target' };
+      else if (!srcIsPO && dstIsPO) lineStyle = { color: 'source' };
+      // both PO → leave as default (rare edge-case)
+
+      return { source: l.source, target: l.target, value: l.value, ...(lineStyle ? { lineStyle } : {}) };
+    });
+  }, [links, nodes]);
 
   const option: EChartsOption = useMemo(() => ({
     tooltip: { show: false },
