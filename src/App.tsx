@@ -8,7 +8,7 @@ import './styles/globals.css';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/observability-v5-prototype">
       <Layout>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

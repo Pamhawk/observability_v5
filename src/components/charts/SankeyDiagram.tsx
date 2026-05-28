@@ -71,6 +71,7 @@ export function SankeyDiagram({
   height = 500,
 }: SankeyDiagramProps) {
   const chartRef = useRef<ReactECharts>(null);
+  const containerDivRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [nodeLayouts, setNodeLayouts] = useState<Record<string, NodeLayout>>({});
 
@@ -173,10 +174,20 @@ export function SankeyDiagram({
 
   // Also update layouts whenever option changes (re-render)
   useEffect(() => {
-    // Small delay to let ECharts finish layout
-    const id = setTimeout(updateNodeLayouts, 50);
+    const id = setTimeout(updateNodeLayouts, 80);
     return () => clearTimeout(id);
   }, [option, updateNodeLayouts]);
+
+  // Re-anchor overlay buttons whenever the container is resized
+  useEffect(() => {
+    const el = containerDivRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setTimeout(updateNodeLayouts, 80);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateNodeLayouts]);
 
   // ── Cursor helper ─────────────────────────────────────────────────────────
   const setCursor = (cursor: string) => {
@@ -232,8 +243,9 @@ export function SankeyDiagram({
       const layout = nodeLayouts[node.id];
       if (!layout || layout.height < 6) continue;
 
+      // Position the icon at the top of the node bar, just to its right
       const right = layout.x + layout.width + 3;
-      const midY = layout.y + layout.height / 2 - 8;
+      const topY  = layout.y + 4;
 
       // ── My ASN expand icon (on collapsed expandable My ASN nodes) ──────
       if (node.expandable && node.stage === 'myASN') {
@@ -242,7 +254,7 @@ export function SankeyDiagram({
           <button
             key={`myasn-${node.id}`}
             className={`${styles.iconBtn} ${styles.iconBtnTeal}`}
-            style={{ left: right, top: midY }}
+            style={{ left: right, top: topY }}
             title={isExpanded ? 'Collapse routers & interfaces' : 'Expand routers & interfaces'}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onNodeToggleExpandRef.current?.(node.id); }}
@@ -258,7 +270,7 @@ export function SankeyDiagram({
           <button
             key={`collapse-${node.id}`}
             className={`${styles.iconBtn} ${styles.iconBtnTealOutline}`}
-            style={{ left: right, top: midY }}
+            style={{ left: right, top: topY }}
             title="Collapse back to ASN node"
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onNodeToggleExpandRef.current?.(node.parentAsnId!); }}
@@ -407,7 +419,7 @@ export function SankeyDiagram({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerDivRef}>
       <ReactECharts
         ref={chartRef}
         option={option}
