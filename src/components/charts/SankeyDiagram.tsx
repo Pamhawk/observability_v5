@@ -41,12 +41,12 @@ interface NodeLayout {
 const STAGE_COLORS: Record<SankeyStage, string> = {
   originASN:          '#F97316',
   previousPeer:       '#8B5CF6',
-  upstreamPO:         '#6EE7B7',
+  upstreamPO:         '#A855F7',
   myASN:              '#14B8A6',
   myIngressInterface: '#99F6E4',
   myRouter:           '#0E9F8E',
   myEgressInterface:  '#0D9488',
-  downstreamPO:       '#5EEAD4',
+  downstreamPO:       '#A855F7',
   nextPeer:           '#3B82F6',
   destinationASN:     '#EC4899',
 };
@@ -102,15 +102,17 @@ export function SankeyDiagram({
       const filterColor = stageFilters.find(f => f.stage === node.stage)?.color;
       const color = filterColor ?? STAGE_COLORS[node.stage] ?? '#999';
       const prefix = STAGE_LABEL_PREFIX[node.stage] ?? '';
+      const isPO = node.nodeType === 'protectedObject';
 
       return {
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
-          color,
-          borderRadius: node.nodeType === 'protectedObject' ? 8 : 3,
-          borderWidth: node.nodeType === 'router' ? 2 : 0,
-          borderColor: node.nodeType === 'router' ? '#0a7a6e' : undefined,
+          color:        isPO ? 'transparent' : color,
+          borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : 3),
+          borderWidth:  isPO ? 3 : (node.nodeType === 'router' ? 2 : 0),
+          borderColor:  isPO ? color : (node.nodeType === 'router' ? '#0a7a6e' : undefined),
+          borderType:   isPO ? 'dashed' : 'solid',
         },
         label: { formatter: () => `${prefix}${node.name}` },
       };
@@ -400,7 +402,7 @@ export function SankeyDiagram({
         })}
         {hasPO && (
           <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-            <span className={styles.legendDot} style={{ backgroundColor: '#6EE7B7', border: '1px solid #14B8A6' }} />
+            <span className={styles.legendDot} style={{ backgroundColor: 'transparent', border: '2px dashed #A855F7', borderRadius: '3px' }} />
             <span className={styles.legendLabel}>Protected Objects</span>
           </div>
         )}
