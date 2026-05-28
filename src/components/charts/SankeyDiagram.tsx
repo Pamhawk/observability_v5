@@ -45,7 +45,7 @@ const STAGE_COLORS: Record<SankeyStage, string> = {
   myASN:              '#14B8A6',
   myIngressInterface: '#99F6E4',
   myRouter:           '#0E9F8E',
-  myEgressInterface:  '#0D9488',
+  myEgressInterface:  '#99F6E4',
   downstreamPO:       '#A855F7',
   nextPeer:           '#3B82F6',
   destinationASN:     '#EC4899',
@@ -104,12 +104,15 @@ export function SankeyDiagram({
       const prefix = STAGE_LABEL_PREFIX[node.stage] ?? '';
       const isPO = node.nodeType === 'protectedObject';
 
+      const isPeer = node.stage === 'previousPeer' || node.stage === 'nextPeer';
+
       return {
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
           // 'rgba(0,0,0,0)' is safer than 'transparent' in the ECharts SVG renderer
           color:        isPO ? 'rgba(0,0,0,0)' : color,
+          opacity:      isPeer ? 0.35 : 1,
           borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : 3),
           borderWidth:  isPO ? 3 : (node.nodeType === 'router' ? 2 : 0),
           borderColor:  isPO ? color : (node.nodeType === 'router' ? '#0a7a6e' : undefined),
