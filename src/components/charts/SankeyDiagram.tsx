@@ -51,6 +51,10 @@ const STAGE_COLORS: Record<SankeyStage, string> = {
   destinationASN:     '#EC4899',
 };
 
+// ECharts series margins — keep in sync with the series option below
+const CHART_LEFT = 80;
+const CHART_TOP  = 20;
+
 // Label prefix by stage
 const STAGE_LABEL_PREFIX: Partial<Record<SankeyStage, string>> = {
   myIngressInterface: '↓ ',
@@ -131,7 +135,7 @@ export function SankeyDiagram({
       nodeWidth: 24,
       nodeGap: 48,
       layoutIterations: 32,
-      left: 80, right: 150, top: 20, bottom: 10,
+      left: CHART_LEFT, right: 150, top: CHART_TOP, bottom: 10,
     }],
   }), [echartsNodes, echartsLinks]);
 
@@ -154,7 +158,8 @@ export function SankeyDiagram({
           layouts[name] = {
             x: layout.x ?? 0,
             y: layout.y ?? 0,
-            width: layout.width ?? 20,
+            // ECharts Sankey uses `dx` (not `width`) for node bar width
+            width: layout.dx ?? layout.width ?? 24,
             height: layout.dy ?? layout.height ?? 0,
           };
         }
@@ -243,9 +248,10 @@ export function SankeyDiagram({
       const layout = nodeLayouts[node.id];
       if (!layout || layout.height < 6) continue;
 
-      // Position the icon at the top of the node bar, just to its right
-      const right = layout.x + layout.width + 3;
-      const topY  = layout.y + 4;
+      // ECharts layout coords are in chart-area space (origin inside the margins).
+      // Add CHART_LEFT / CHART_TOP to convert to container-relative pixel coords.
+      const right = layout.x + CHART_LEFT + layout.width + 3;
+      const topY  = layout.y + CHART_TOP  + 4;
 
       // ── My ASN expand icon (on collapsed expandable My ASN nodes) ──────
       if (node.expandable && node.stage === 'myASN') {
