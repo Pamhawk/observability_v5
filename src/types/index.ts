@@ -135,7 +135,6 @@ export type SankeyStage =
   | 'myASN'               // collapsed My ASN node
   | 'myIngressInterface'  // expanded: ingress interface inside My ASN
   | 'myRouter'            // expanded: router inside My ASN
-  | 'myEgressInterface'   // expanded: egress interface inside My ASN
   | 'downstreamPO'        // customer's protected prefixes on the egress side (between myASN and nextPeer)
   | 'nextPeer'
   | 'destinationASN';

@@ -105,9 +105,9 @@ export const routers: Router[] = [
 export const defaultStageFilters: StageFilter[] = [
   { stage: 'originASN',      label: 'Origin ASN',      color: '#F97316', enabled: true, selectedASNs: [] },
   { stage: 'previousPeer',   label: 'Previous Peer',   color: '#8B5CF6', enabled: true, selectedASNs: [] },
-  { stage: 'upstreamPO',     label: 'Upstream PO',     color: '#6EE7B7', enabled: true, selectedASNs: [] },
+  { stage: 'upstreamPO',     label: 'Upstream PO',     color: '#A855F7', enabled: true, selectedASNs: [] },
   { stage: 'myASN',          label: 'My ASNs',         color: '#14B8A6', enabled: true, selectedASNs: [] },
-  { stage: 'downstreamPO',   label: 'Downstream PO',   color: '#5EEAD4', enabled: true, selectedASNs: [] },
+  { stage: 'downstreamPO',   label: 'Downstream PO',   color: '#A855F7', enabled: true, selectedASNs: [] },
   { stage: 'nextPeer',       label: 'Next Peer',       color: '#3B82F6', enabled: true, selectedASNs: [] },
   { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
 ];
@@ -314,10 +314,6 @@ export const myAsnExpandedNodes: Record<string, SankeyNode[]> = {
     // Routers
     { id: 'san-rtr-64512-nyc01', name: 'NYC-Core-01', asnNumber: 64512, stage: 'myRouter', nodeType: 'router', trafficGbps: 61, country: 'United States', state: 'New York', city: 'New York', inFlows: 2, outFlows: 2, isMyASN: true, parentAsnId: 'my-64512' },
     { id: 'san-rtr-64512-nyc02', name: 'NYC-Edge-01', asnNumber: 64512, stage: 'myRouter', nodeType: 'router', trafficGbps: 14, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512' },
-    // Egress interfaces
-    { id: 'san-egr-64512-nyc01-eth10', name: 'Eth1/0', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 50, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 3, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'egress' },
-    { id: 'san-egr-64512-nyc01-eth11', name: 'Eth1/1', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 11, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Core-01', interfaceDir: 'egress' },
-    { id: 'san-egr-64512-nyc02-ge01',  name: 'GigE0/1', asnNumber: 64512, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 14, country: 'United States', state: 'New York', city: 'New York', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64512', routerDisplayName: 'NYC-Edge-01', interfaceDir: 'egress' },
   ],
 
   // ── MyNet-West (AS64513) — 47 G in / 47 G out ─────────────────────────────
@@ -326,7 +322,6 @@ export const myAsnExpandedNodes: Record<string, SankeyNode[]> = {
     { id: 'san-ing-64513-lax01-te00', name: 'Te0/0',  asnNumber: 64513, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 28, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'ingress' },
     { id: 'san-ing-64513-lax01-te01', name: 'Te0/1',  asnNumber: 64513, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 19, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'ingress' },
     { id: 'san-rtr-64513-lax01',      name: 'LAX-Core-01', asnNumber: 64513, stage: 'myRouter', nodeType: 'router', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64513' },
-    { id: 'san-egr-64513-lax01-te10', name: 'Te1/0',  asnNumber: 64513, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64513', routerDisplayName: 'LAX-Core-01', interfaceDir: 'egress' },
   ],
 
   // ── MyNet-EU (AS64514) — 43 G in / 43 G out ───────────────────────────────
@@ -334,7 +329,6 @@ export const myAsnExpandedNodes: Record<string, SankeyNode[]> = {
   'my-64514': [
     { id: 'san-ing-64514-fra01-h00', name: 'Hu0/0', asnNumber: 64514, stage: 'myIngressInterface', nodeType: 'interface', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 2, outFlows: 1, isMyASN: true, parentAsnId: 'my-64514', routerDisplayName: 'FRA-Core-01', interfaceDir: 'ingress' },
     { id: 'san-rtr-64514-fra01',     name: 'FRA-Core-01', asnNumber: 64514, stage: 'myRouter', nodeType: 'router', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 1, isMyASN: true, parentAsnId: 'my-64514' },
-    { id: 'san-egr-64514-fra01-h01', name: 'Hu0/1', asnNumber: 64514, stage: 'myEgressInterface', nodeType: 'interface', trafficGbps: 43, country: 'Germany', state: 'Hesse', city: 'Frankfurt', inFlows: 1, outFlows: 2, isMyASN: true, parentAsnId: 'my-64514', routerDisplayName: 'FRA-Core-01', interfaceDir: 'egress' },
   ],
 };
 
@@ -348,8 +342,7 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
   // Upstream PO totals:  upo-1=35 (eth00 20 + eth01 15), upo-2=40 (eth00 16 + eth01 10 + ge00 14)
   // Ingress totals: Eth0/0=36, Eth0/1=25, GigE0/0=14 → total 75 ✓
   // Router totals:  NYC-Core-01=61, NYC-Edge-01=14 → total 75 ✓
-  // Egress totals:  Eth1/0=50, Eth1/1=11, GigE0/1=14 → total 75 ✓
-  // Downstream PO: all egress → dpo-64512-1 = 75 ✓
+  // Downstream PO: routers → dpo-64512-1 = 75 ✓
   'my-64512': [
     // Upstream PO → Ingress
     { source: 'san-upo-64512-1', target: 'san-ing-64512-nyc01-eth00', value: 20, trafficGbps: 20, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
@@ -361,22 +354,17 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
     { source: 'san-ing-64512-nyc01-eth00', target: 'san-rtr-64512-nyc01', value: 36, trafficGbps: 36, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 70 } },
     { source: 'san-ing-64512-nyc01-eth01', target: 'san-rtr-64512-nyc01', value: 25, trafficGbps: 25, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 65 } },
     { source: 'san-ing-64512-nyc02-ge00',  target: 'san-rtr-64512-nyc02', value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
-    // Router → Egress
-    { source: 'san-rtr-64512-nyc01', target: 'san-egr-64512-nyc01-eth10', value: 50, trafficGbps: 50, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
-    { source: 'san-rtr-64512-nyc01', target: 'san-egr-64512-nyc01-eth11', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
-    { source: 'san-rtr-64512-nyc02', target: 'san-egr-64512-nyc02-ge01',  value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
-    // Egress → Downstream PO
-    { source: 'san-egr-64512-nyc01-eth10', target: 'san-dpo-64512-1', value: 50, trafficGbps: 50, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
-    { source: 'san-egr-64512-nyc01-eth11', target: 'san-dpo-64512-1', value: 11, trafficGbps: 11, topProtocol: 'TCP', topApplication: { port: 22,  name: 'SSH',   percent: 28 } },
-    { source: 'san-egr-64512-nyc02-ge01',  target: 'san-dpo-64512-1', value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
-    // Egress → Downstream PO (pure-sink: NYC-Direct-In has no onward connections)
-    { source: 'san-egr-64512-nyc01-eth11', target: 'san-dpo-64512-2', value: 12, trafficGbps: 12, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 74 } },
+    // Router → Downstream PO
+    { source: 'san-rtr-64512-nyc01', target: 'san-dpo-64512-1', value: 61, trafficGbps: 61, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
+    { source: 'san-rtr-64512-nyc02', target: 'san-dpo-64512-1', value: 14, trafficGbps: 14, topProtocol: 'UDP', topApplication: { port: 53,  name: 'DNS',   percent: 36 } },
+    // Router → Downstream PO (pure-sink: NYC-Direct-In has no onward connections)
+    { source: 'san-rtr-64512-nyc01', target: 'san-dpo-64512-2', value: 12, trafficGbps: 12, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 74 } },
   ],
 
   // ── MyNet-West (AS64513) expanded links ────────────────────────────────────
   // upo-64513-1 (47G) → Te0/0 28 + Te0/1 19 = 47
   // upo-64513-2 (18G, pure-origin) → Te0/0 18   (generates traffic; no upstream peers)
-  // Ingress: Te0/0=46, Te0/1=19 → Router: LAX-Core-01=65 → Egress: Te1/0=65 → dpo-64513-1
+  // Ingress: Te0/0=46, Te0/1=19 → Router: LAX-Core-01=65 → dpo-64513-1
   'my-64513': [
     { source: 'san-upo-64513-1', target: 'san-ing-64513-lax01-te00', value: 28, trafficGbps: 28, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 68 } },
     { source: 'san-upo-64513-1', target: 'san-ing-64513-lax01-te01', value: 19, trafficGbps: 19, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 44 } },
@@ -384,17 +372,17 @@ export const myAsnExpandedLinks: Record<string, SankeyLink[]> = {
     { source: 'san-upo-64513-2', target: 'san-ing-64513-lax01-te00', value: 18, trafficGbps: 18, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
     { source: 'san-ing-64513-lax01-te00', target: 'san-rtr-64513-lax01', value: 46, trafficGbps: 46, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 62 } },
     { source: 'san-ing-64513-lax01-te01', target: 'san-rtr-64513-lax01', value: 19, trafficGbps: 19, topProtocol: 'TCP', topApplication: { port: 80,  name: 'HTTP',  percent: 44 } },
-    { source: 'san-rtr-64513-lax01',      target: 'san-egr-64513-lax01-te10', value: 65, trafficGbps: 65, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
-    { source: 'san-egr-64513-lax01-te10', target: 'san-dpo-64513-1', value: 65, trafficGbps: 65, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
+    // Router → Downstream PO
+    { source: 'san-rtr-64513-lax01', target: 'san-dpo-64513-1', value: 65, trafficGbps: 65, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 58 } },
   ],
 
   // ── MyNet-EU (AS64514) expanded links ─────────────────────────────────────
-  // upo-64514-1 (43G) → Hu0/0 43 ✓  Router: FRA-Core-01=43 ✓  Egress: Hu0/1=43 ✓  dpo-64514-1: 43 ✓
+  // upo-64514-1 (43G) → Hu0/0 43 ✓  Router: FRA-Core-01=43 ✓  dpo-64514-1: 43 ✓
   'my-64514': [
-    { source: 'san-upo-64514-1',      target: 'san-ing-64514-fra01-h00', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
-    { source: 'san-ing-64514-fra01-h00', target: 'san-rtr-64514-fra01',     value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
-    { source: 'san-rtr-64514-fra01',     target: 'san-egr-64514-fra01-h01', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
-    { source: 'san-egr-64514-fra01-h01', target: 'san-dpo-64514-1',         value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'san-upo-64514-1',        target: 'san-ing-64514-fra01-h00', value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    { source: 'san-ing-64514-fra01-h00', target: 'san-rtr-64514-fra01',    value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
+    // Router → Downstream PO
+    { source: 'san-rtr-64514-fra01',     target: 'san-dpo-64514-1',        value: 43, trafficGbps: 43, topProtocol: 'TCP', topApplication: { port: 443, name: 'HTTPS', percent: 72 } },
   ],
 };
 

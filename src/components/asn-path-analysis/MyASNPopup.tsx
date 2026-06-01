@@ -82,7 +82,7 @@ export function MyASNPopup({
     for (const sn of expandedSubNodes) {
       if (sn.stage === 'myRouter') {
         routerSankeyId[sn.name] = sn.id;
-      } else if (sn.stage === 'myIngressInterface' || sn.stage === 'myEgressInterface') {
+      } else if (sn.stage === 'myIngressInterface') {
         const key = `${sn.routerDisplayName}::${sn.name}`;
         ifaceSankeyId[key] = sn.id;
       }

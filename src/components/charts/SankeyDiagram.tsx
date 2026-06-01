@@ -45,7 +45,6 @@ const STAGE_COLORS: Record<SankeyStage, string> = {
   myASN:              '#14B8A6',
   myIngressInterface: '#99F6E4',
   myRouter:           '#0E9F8E',
-  myEgressInterface:  '#99F6E4',
   downstreamPO:       '#A855F7',
   nextPeer:           '#3B82F6',
   destinationASN:     '#EC4899',
@@ -58,7 +57,6 @@ const CHART_TOP  = 20;
 // Label prefix by stage
 const STAGE_LABEL_PREFIX: Partial<Record<SankeyStage, string>> = {
   myIngressInterface: '↓ ',
-  myEgressInterface:  '↑ ',
 };
 
 export function SankeyDiagram({
@@ -334,7 +332,7 @@ export function SankeyDiagram({
               <span className={styles.tooltipMono}>{node.prefix}</span>
             </div>
           )}
-          {(node.stage === 'myIngressInterface' || node.stage === 'myEgressInterface') && (
+          {node.stage === 'myIngressInterface' && (
             <>
               <div className={styles.tooltipRow}>
                 <span>Router:</span><span>{node.routerDisplayName}</span>
@@ -389,7 +387,7 @@ export function SankeyDiagram({
   // ── Legend ────────────────────────────────────────────────────────────────
   const enabledCount = stageFilters.filter(f => f.enabled).length;
   const anyExpanded = nodes.some(n =>
-    n.stage === 'myIngressInterface' || n.stage === 'myRouter' || n.stage === 'myEgressInterface',
+    n.stage === 'myIngressInterface' || n.stage === 'myRouter',
   );
 
   const renderLegend = () => {
@@ -432,10 +430,6 @@ export function SankeyDiagram({
             <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
               <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myRouter }} />
               <span className={styles.legendLabel}>Router</span>
-            </div>
-            <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myEgressInterface }} />
-              <span className={styles.legendLabel}>↑ Egress</span>
             </div>
           </>
         )}

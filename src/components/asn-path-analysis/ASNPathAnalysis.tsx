@@ -26,7 +26,7 @@ import type { SankeyNode, SankeyLink, StageFilter, TimeRange, SankeyStage } from
 import styles from './ASNPathAnalysis.module.css';
 
 // My ASN sub-stages: visibility follows myASN filter
-const MY_ASN_SUB_STAGES = new Set(['myIngressInterface', 'myRouter', 'myEgressInterface']);
+const MY_ASN_SUB_STAGES = new Set(['myIngressInterface', 'myRouter']);
 
 // Static node-id → stage map built once from all mock data (used for semantic link guards).
 // Covers collapsed nodes, expanded sub-nodes, and PO nodes.
@@ -48,7 +48,7 @@ const COMPACT_STAGE_ORDER: SankeyStage[] = [
 
 const EXPANDED_STAGE_ORDER: SankeyStage[] = [
   'originASN', 'previousPeer', 'upstreamPO',
-  'myIngressInterface', 'myRouter', 'myEgressInterface',
+  'myIngressInterface', 'myRouter',
   'downstreamPO', 'nextPeer', 'destinationASN',
 ];
 
