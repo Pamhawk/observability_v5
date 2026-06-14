@@ -21,33 +21,28 @@
   justify-content: center;
 }
 
-.legendControls {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.legendExpandBtn {
+/* Expand / Collapse All toggle button — absolute, top-right of chart area */
+.expandToggleBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 4px;
   border: 1px solid var(--color-border);
-  background: transparent;
+  background: var(--color-bg-card);
   color: var(--color-text-secondary, #6b7280);
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
   line-height: 1.4;
+  opacity: 0.8;
 }
 
-.legendExpandBtn:hover:not(:disabled) {
+.expandToggleBtn:hover {
   background-color: var(--color-bg-hover);
   color: var(--color-text-primary, #e5e7eb);
-}
-
-.legendExpandBtn:disabled {
-  opacity: 0.35;
-  cursor: default;
+  opacity: 1;
 }
 
 .legendItem {

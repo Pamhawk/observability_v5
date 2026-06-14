@@ -394,8 +394,6 @@ export function SankeyDiagram({
     const PO_STAGES = new Set(['upstreamPO', 'downstreamPO']);
     const toggleableFilters = stageFilters.filter(f => !PO_STAGES.has(f.stage));
 
-    const showExpandControls = onExpandAll !== undefined || onCollapseAll !== undefined;
-
     return (
       <div className={styles.legend}>
         <div className={styles.legendItems}>
@@ -438,29 +436,11 @@ export function SankeyDiagram({
             </>
           )}
         </div>
-        {showExpandControls && (
-          <div className={styles.legendControls}>
-            <button
-              className={styles.legendExpandBtn}
-              onClick={onExpandAll}
-              disabled={allExpanded}
-              title="Expand all My ASN nodes"
-            >
-              Expand All
-            </button>
-            <button
-              className={styles.legendExpandBtn}
-              onClick={onCollapseAll}
-              disabled={!anyExpanded}
-              title="Collapse all My ASN nodes"
-            >
-              Collapse All
-            </button>
-          </div>
-        )}
       </div>
     );
   };
+
+  const showExpandToggle = onExpandAll !== undefined || onCollapseAll !== undefined;
 
   return (
     <div className={styles.container} ref={containerDivRef}>
@@ -474,6 +454,16 @@ export function SankeyDiagram({
       />
       {/* Expand/collapse icon overlays */}
       {renderExpandIcons()}
+      {/* Expand / Collapse All toggle — top-right of chart area */}
+      {showExpandToggle && (
+        <button
+          className={styles.expandToggleBtn}
+          onClick={anyExpanded ? onCollapseAll : onExpandAll}
+          title={anyExpanded ? 'Collapse all My ASN nodes' : 'Expand all My ASN nodes'}
+        >
+          {anyExpanded ? '⊟ Collapse All' : '⊞ Expand All'}
+        </button>
+      )}
       {renderLegend()}
       {renderTooltip()}
     </div>

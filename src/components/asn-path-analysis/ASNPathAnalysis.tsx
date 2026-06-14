@@ -5,6 +5,7 @@ import { SankeyDiagram } from '../charts';
 import { StageFilters } from './StageFilters';
 import { CustomViewBuilder } from './CustomViewBuilder';
 import { MyASNPopup } from './MyASNPopup';
+import { POPopup } from './POPopup';
 import { FlowPopup } from './FlowPopup';
 import { ASNPathTable } from './ASNPathTable';
 import {
@@ -210,6 +211,7 @@ export function ASNPathAnalysis() {
     end: new Date(),
   }));
   const [selectedNode, setSelectedNode] = useState<SankeyNode | null>(null);
+  const [selectedPONode, setSelectedPONode] = useState<SankeyNode | null>(null);
   const [selectedLink, setSelectedLink] = useState<SankeyLink | null>(null);
 
   // Which My ASN nodes are manually expanded (icon click)
@@ -270,9 +272,15 @@ export function ASNPathAnalysis() {
     setRouterFilterSelections(new Set());
   }, []);
 
-  // ALL node clicks open the popup (expand/collapse is icon-only)
+  // Route node clicks: PO nodes open POPopup, everything else opens MyASNPopup
   const handleNodeClick = useCallback((node: SankeyNode) => {
-    setSelectedNode(node);
+    if (node.nodeType === 'protectedObject') {
+      setSelectedPONode(node);
+      setSelectedNode(null);
+    } else {
+      setSelectedNode(node);
+      setSelectedPONode(null);
+    }
   }, []);
 
   const handleLinkClick = useCallback((link: SankeyLink) => {
@@ -572,6 +580,12 @@ export function ASNPathAnalysis() {
         node={selectedNode}
         routerFilterSelections={routerFilterSelections}
         onRouterFilterChange={handleRouterFilterChange}
+      />
+
+      <POPopup
+        isOpen={selectedPONode !== null}
+        onClose={() => setSelectedPONode(null)}
+        node={selectedPONode}
       />
 
       <FlowPopup
