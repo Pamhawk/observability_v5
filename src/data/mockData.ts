@@ -103,22 +103,22 @@ export const routers: Router[] = [
 // Stage filter configuration — per view
 export const defaultStageFilters: StageFilter[] = [
   { stage: 'originASN',      label: 'Origin ASN',      color: '#F97316', enabled: true, selectedASNs: [] },
-  { stage: 'previousPeer',   label: 'Previous Peer',   color: '#9333EA', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeer',   label: 'Previous Peer',   color: '#3B82F6', enabled: true, selectedASNs: [] },
   { stage: 'myASN',          label: 'My ASNs',         color: '#14B8A6', enabled: true, selectedASNs: [] },
-  { stage: 'nextPeer',       label: 'Next Peer',       color: '#9333EA', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeer',       label: 'Next Peer',       color: '#F43F5E', enabled: true, selectedASNs: [] },
   { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
 ];
 
 export const inboundStageFilters: StageFilter[] = [
   { stage: 'upstreamPO',     label: 'Upstream PO',     color: '#818CF8', enabled: true, selectedASNs: [] },
   { stage: 'myASN',          label: 'My ASNs',         color: '#14B8A6', enabled: true, selectedASNs: [] },
-  { stage: 'nextPeer',       label: 'Next Peer',       color: '#9333EA', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeer',       label: 'Next Peer',       color: '#F43F5E', enabled: true, selectedASNs: [] },
   { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
 ];
 
 export const outboundStageFilters: StageFilter[] = [
   { stage: 'originASN',    label: 'Source',         color: '#F97316', enabled: true, selectedASNs: [] },
-  { stage: 'previousPeer', label: 'Previous Peer',  color: '#9333EA', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeer', label: 'Previous Peer',  color: '#3B82F6', enabled: true, selectedASNs: [] },
   { stage: 'myASN',        label: 'My ASNs',        color: '#14B8A6', enabled: true, selectedASNs: [] },
   { stage: 'downstreamPO', label: 'Downstream PO',  color: '#FB923C', enabled: true, selectedASNs: [] },
 ];

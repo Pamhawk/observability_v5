@@ -44,13 +44,13 @@ interface NodeLayout {
 // ── Node colors by stage ───────────────────────────────────────────────────
 const STAGE_COLORS: Record<SankeyStage, string> = {
   originASN:          '#F97316',  // orange
-  previousPeer:       '#9333EA',  // proper purple
+  previousPeer:       '#3B82F6',  // blue  (orange → blue → indigo → teal)
   upstreamPO:         '#818CF8',  // indigo  (left of teal, cool)
   myASN:              '#14B8A6',  // teal
   myIngressInterface: '#99F6E4',  // light teal
   myRouter:           '#0E9F8E',  // dark teal
   downstreamPO:       '#FB923C',  // amber   (right of teal, warm)
-  nextPeer:           '#9333EA',  // proper purple (symmetric with previousPeer)
+  nextPeer:           '#F43F5E',  // rose  (teal → amber → rose → pink)
   destinationASN:     '#EC4899',  // pink
 };
 

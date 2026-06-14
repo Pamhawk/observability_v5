@@ -169,9 +169,9 @@ const VIEW_FILTERS: Record<StandardView, StageFilter[]> = {
 };
 
 const CUSTOM_STAGE_COLORS: Record<SankeyStage, string> = {
-  originASN: '#F97316', previousPeer: '#9333EA', upstreamPO: '#818CF8',
+  originASN: '#F97316', previousPeer: '#3B82F6', upstreamPO: '#818CF8',
   myASN: '#14B8A6', myIngressInterface: '#99F6E4', myRouter: '#0E9F8E',
-  downstreamPO: '#FB923C', nextPeer: '#9333EA', destinationASN: '#EC4899',
+  downstreamPO: '#FB923C', nextPeer: '#F43F5E', destinationASN: '#EC4899',
 };
 const CUSTOM_STAGE_LABELS: Partial<Record<SankeyStage, string>> = {
   originASN: 'Origin', previousPeer: 'Previous Peer', upstreamPO: 'Upstream PO',

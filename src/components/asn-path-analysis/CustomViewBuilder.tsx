@@ -3,13 +3,13 @@ import styles from './CustomViewBuilder.module.css';
 
 const STAGE_COLORS: Record<SankeyStage, string> = {
   originASN:          '#F97316',
-  previousPeer:       '#9333EA',
+  previousPeer:       '#3B82F6',
   upstreamPO:         '#818CF8',
   myASN:              '#14B8A6',
   myIngressInterface: '#99F6E4',
   myRouter:           '#0E9F8E',
   downstreamPO:       '#FB923C',
-  nextPeer:           '#9333EA',
+  nextPeer:           '#F43F5E',
   destinationASN:     '#EC4899',
 };
 
@@ -27,25 +27,10 @@ const ALL_COLUMNS: Array<{ id: SankeyStage; label: string; group: 'left' | 'cent
   { id: 'destinationASN',     label: 'Destination',   group: 'right'  },
 ];
 
-function getDisabledSet(selected: Set<SankeyStage>): Set<SankeyStage> {
-  const disabled = new Set<SankeyStage>();
-  if (selected.has('upstreamPO')) {
-    disabled.add('originASN');
-    disabled.add('previousPeer');
-  }
-  if (selected.has('originASN') || selected.has('previousPeer')) {
-    disabled.add('upstreamPO');
-  }
-  if (selected.has('downstreamPO')) {
-    disabled.add('nextPeer');
-    disabled.add('destinationASN');
-  }
-  if (selected.has('nextPeer') || selected.has('destinationASN')) {
-    disabled.add('downstreamPO');
-  }
-  // My ASN, Ingress, and Router are NOT mutually exclusive:
-  // Ingress/Router show as sub-nodes expanded below My ASN.
-  return disabled;
+function getDisabledSet(_selected: Set<SankeyStage>): Set<SankeyStage> {
+  // No chips are disabled — conflicts are resolved automatically on click
+  // via getConflicts(), so every chip remains clickable at all times.
+  return new Set<SankeyStage>();
 }
 
 function getConflicts(adding: SankeyStage): SankeyStage[] {
