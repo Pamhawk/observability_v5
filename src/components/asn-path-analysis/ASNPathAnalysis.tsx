@@ -336,7 +336,14 @@ export function ASNPathAnalysis() {
       if (node.stage === 'myASN') {
         visibleMyAsnNumbers.add(node.asnNumber);
         if (isMyAsnExpanded(node.id) || forceExpanded) {
-          nodes.push(...(myAsnExpandedNodes[node.id] ?? []));
+          const subNodes = myAsnExpandedNodes[node.id] ?? [];
+          // When forceExpanded by custom view: only include sub-stages that are
+          // explicitly selected (e.g. only Router, or only Ingress, or both).
+          // When manually expanded via toggle: include all sub-nodes.
+          const filteredSubs = forceExpanded
+            ? subNodes.filter(n => cols.has(n.stage))
+            : subNodes;
+          nodes.push(...filteredSubs);
         } else {
           nodes.push(node);
         }
@@ -440,14 +447,22 @@ export function ASNPathAnalysis() {
       const COMPACT_BASE: SankeyStage[] = ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN'];
       const EXPANDED_BASE: SankeyStage[] = ['originASN', 'previousPeer', 'upstreamPO', 'myIngressInterface', 'myRouter', 'downstreamPO', 'nextPeer', 'destinationASN'];
       const compact = COMPACT_BASE.filter(s => cols.has(s));
-      const expanded = EXPANDED_BASE.filter(s =>
-        cols.has(s) || (MY_ASN_SUB_STAGES.has(s) && (cols.has('myASN') || forceExpanded))
-      );
+      const expanded = EXPANDED_BASE.filter(s => {
+        if (MY_ASN_SUB_STAGES.has(s)) {
+          // forceExpanded: only include sub-stages explicitly chosen in custom view
+          // manual-expand (myASN selected + toggle): include all sub-stages
+          return forceExpanded ? cols.has(s) : cols.has('myASN');
+        }
+        return cols.has(s);
+      });
       customOrders = { compact, expanded };
     }
 
-    // When forceExpanded, treat myASN as enabled for depth-slot allocation of sub-stages
-    const depthEnabledStages = forceExpanded ? new Set([...enabledStages, 'myASN']) : enabledStages;
+    // When forceExpanded, treat myASN as enabled for depth-slot allocation of sub-stages.
+    // Also add explicitly selected sub-stages so they get their own depth columns.
+    const depthEnabledStages = forceExpanded
+      ? new Set([...enabledStages, 'myASN', ...Array.from(cols).filter(s => MY_ASN_SUB_STAGES.has(s))])
+      : enabledStages;
     const dynamicDepths = computeDynamicDepths(view, depthEnabledStages, anyExpanded, presentStages, customOrders);
 
     return { nodes, links: semanticLinks, dynamicDepths };

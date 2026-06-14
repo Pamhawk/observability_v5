@@ -21,11 +21,12 @@
   justify-content: center;
 }
 
-/* Expand / Collapse All toggle button — absolute, top-right of chart area */
+/* Expand / Collapse All toggle button — absolute, top-right of chart area
+   Offset from right to sit beside (not behind) the Download PNG button at right:8px */
 .expandToggleBtn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  right: 48px;
   z-index: 20;
   font-size: 11px;
   padding: 3px 10px;

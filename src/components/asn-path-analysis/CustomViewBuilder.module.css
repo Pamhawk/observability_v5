@@ -87,3 +87,10 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* Sub-chips (Ingress, Router) — visually indented under My ASN */
+.chipSub {
+  border-style: dashed;
+  font-size: 10.5px;
+  padding: 3px 8px;
+}

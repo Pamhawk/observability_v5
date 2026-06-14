@@ -13,14 +13,15 @@ const STAGE_COLORS: Record<SankeyStage, string> = {
   destinationASN:     '#EC4899',
 };
 
-// Ordered left-to-right as they appear in the Sankey
-const ALL_COLUMNS: Array<{ id: SankeyStage; label: string; group: 'left' | 'center' | 'right' }> = [
+// Ordered left-to-right as they appear in the Sankey.
+// sub:true → rendered as indented sub-options of My ASN (expand mode).
+const ALL_COLUMNS: Array<{ id: SankeyStage; label: string; group: 'left' | 'center' | 'right'; sub?: boolean }> = [
   { id: 'originASN',          label: 'Origin',        group: 'left'   },
   { id: 'previousPeer',       label: 'Prev Peer',     group: 'left'   },
   { id: 'upstreamPO',         label: 'Upstream PO',   group: 'left'   },
   { id: 'myASN',              label: 'My ASN',        group: 'center' },
-  { id: 'myIngressInterface', label: 'Ingress',       group: 'center' },
-  { id: 'myRouter',           label: 'Router',        group: 'center' },
+  { id: 'myIngressInterface', label: '↳ Ingress',     group: 'center', sub: true },
+  { id: 'myRouter',           label: '↳ Router',      group: 'center', sub: true },
   { id: 'downstreamPO',       label: 'Downstream PO', group: 'right'  },
   { id: 'nextPeer',           label: 'Next Peer',     group: 'right'  },
   { id: 'destinationASN',     label: 'Destination',   group: 'right'  },
@@ -42,33 +43,26 @@ function getDisabledSet(selected: Set<SankeyStage>): Set<SankeyStage> {
   if (selected.has('nextPeer') || selected.has('destinationASN')) {
     disabled.add('downstreamPO');
   }
-  if (selected.has('myASN')) {
-    disabled.add('myIngressInterface');
-    disabled.add('myRouter');
-  }
-  if (selected.has('myIngressInterface') || selected.has('myRouter')) {
-    disabled.add('myASN');
-  }
+  // My ASN, Ingress, and Router are NOT mutually exclusive:
+  // Ingress/Router show as sub-nodes expanded below My ASN.
   return disabled;
 }
 
 function getConflicts(adding: SankeyStage): SankeyStage[] {
-  if (adding === 'upstreamPO')                                          return ['originASN', 'previousPeer'];
-  if (adding === 'originASN' || adding === 'previousPeer')              return ['upstreamPO'];
-  if (adding === 'downstreamPO')                                        return ['nextPeer', 'destinationASN'];
-  if (adding === 'nextPeer' || adding === 'destinationASN')             return ['downstreamPO'];
-  if (adding === 'myASN')                                               return ['myIngressInterface', 'myRouter'];
-  if (adding === 'myIngressInterface' || adding === 'myRouter')         return ['myASN'];
+  if (adding === 'upstreamPO')                          return ['originASN', 'previousPeer'];
+  if (adding === 'originASN' || adding === 'previousPeer') return ['upstreamPO'];
+  if (adding === 'downstreamPO')                        return ['nextPeer', 'destinationASN'];
+  if (adding === 'nextPeer' || adding === 'destinationASN') return ['downstreamPO'];
+  // No conflict between myASN and myIngressInterface/myRouter —
+  // they co-exist (Ingress/Router show as expanded sub-nodes of My ASN).
   return [];
 }
 
-function getDisabledReason(id: SankeyStage, selected: Set<SankeyStage>): string {
+function getDisabledReason(id: SankeyStage): string {
   if (id === 'upstreamPO')    return 'Incompatible with Origin / Prev Peer';
   if (id === 'originASN' || id === 'previousPeer') return 'Incompatible with Upstream PO';
   if (id === 'downstreamPO')  return 'Incompatible with Next Peer / Destination';
   if (id === 'nextPeer' || id === 'destinationASN') return 'Incompatible with Downstream PO';
-  if (id === 'myASN')         return 'Incompatible with Ingress / Router';
-  if (id === 'myIngressInterface' || id === 'myRouter') return 'Incompatible with My ASN (use expand instead)';
   return '';
 }
 
@@ -106,7 +100,7 @@ export function CustomViewBuilder({ config, onChange }: Props) {
         {ALL_COLUMNS.map((col, i) => {
           const isSelected = selectedColumns.has(col.id);
           const isDisabled = disabled.has(col.id);
-          const reason = isDisabled ? getDisabledReason(col.id, selectedColumns) : '';
+          const reason = isDisabled ? getDisabledReason(col.id) : '';
           const color = STAGE_COLORS[col.id];
           const prevGroup = i > 0 ? ALL_COLUMNS[i - 1].group : col.group;
           return (
@@ -114,7 +108,7 @@ export function CustomViewBuilder({ config, onChange }: Props) {
               {i > 0 && prevGroup !== col.group && <span className={styles.groupSep} />}
               <button
                 type="button"
-                className={`${styles.chip} ${isSelected ? styles.chipSelected : ''} ${isDisabled ? styles.chipDisabled : ''}`}
+                className={`${styles.chip} ${col.sub ? styles.chipSub : ''} ${isSelected ? styles.chipSelected : ''} ${isDisabled ? styles.chipDisabled : ''}`}
                 style={isSelected ? { borderColor: color, color } : undefined}
                 onClick={() => !isDisabled && handleToggle(col.id)}
                 title={isDisabled ? reason : isSelected ? `Remove ${col.label}` : `Add ${col.label}`}
