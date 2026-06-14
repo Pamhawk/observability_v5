@@ -115,13 +115,11 @@ export function SankeyDiagram({
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
-          // 'rgba(0,0,0,0)' is safer than 'transparent' in the ECharts SVG renderer
-          color:        isPO ? 'rgba(0,0,0,0)' : color,
+          color,
           opacity:      isPeer ? 0.35 : 1,
           borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : 3),
-          borderWidth:  isPO ? 3 : (node.nodeType === 'router' ? 2 : 0),
-          borderColor:  isPO ? color : (node.nodeType === 'router' ? '#0a7a6e' : undefined),
-          borderType:   isPO ? 'dashed' : 'solid',
+          borderWidth:  node.nodeType === 'router' ? 2 : 0,
+          borderColor:  node.nodeType === 'router' ? '#0a7a6e' : undefined,
         },
         label: { formatter: () => `${prefix}${node.name}` },
       };
@@ -131,20 +129,7 @@ export function SankeyDiagram({
 
   const echartsLinks = useMemo(() => {
     // PO nodes are transparent, so links connected to them must not use the PO
-    // node colour for the gradient — use the solid (non-PO) endpoint instead.
-    const poIds = new Set(nodes.filter(n => n.nodeType === 'protectedObject').map(n => n.id));
-
-    return links.map(l => {
-      const srcIsPO = poIds.has(l.source);
-      const dstIsPO = poIds.has(l.target);
-
-      let lineStyle: { color: string } | undefined;
-      if (srcIsPO && !dstIsPO) lineStyle = { color: 'target' };
-      else if (!srcIsPO && dstIsPO) lineStyle = { color: 'source' };
-      // both PO → leave as default (rare edge-case)
-
-      return { source: l.source, target: l.target, value: l.value, ...(lineStyle ? { lineStyle } : {}) };
-    });
+    return links.map(l => ({ source: l.source, target: l.target, value: l.value }));
   }, [links, nodes]);
 
   const option: EChartsOption = useMemo(() => ({
@@ -431,7 +416,7 @@ export function SankeyDiagram({
           })}
           {hasPO && (
             <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-              <span className={styles.legendDot} style={{ backgroundColor: 'transparent', border: '2px dashed #A855F7', borderRadius: '3px' }} />
+              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.upstreamPO }} />
               <span className={styles.legendLabel}>Protected Objects</span>
             </div>
           )}
