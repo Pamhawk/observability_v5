@@ -333,10 +333,15 @@ export function SankeyDiagram({
               <span className={styles.tooltipAsn}> (AS{node.asnNumber})</span>
             )}
           </div>
-          {node.prefix && (
-            <div className={styles.tooltipRow}>
-              <span>Prefix:</span>
-              <span className={styles.tooltipMono}>{node.prefix}</span>
+          {node.prefixes && node.prefixes.length > 0 && (
+            <div className={styles.tooltipPrefixes}>
+              <div className={styles.tooltipPrefixLabel}>Protected Prefixes</div>
+              {node.prefixes.slice(0, 3).map(p => (
+                <div key={p} className={styles.tooltipMono}>{p}</div>
+              ))}
+              {node.prefixes.length > 3 && (
+                <div className={styles.tooltipPrefixMore}>+{node.prefixes.length - 3} more</div>
+              )}
             </div>
           )}
           {node.stage === 'myIngressInterface' && (
@@ -401,17 +406,16 @@ export function SankeyDiagram({
     const hasPO = nodes.some(n =>
       n.stage === 'upstreamPO' || n.stage === 'downstreamPO',
     );
-    // Only show the 5 main ASN stage toggles in legend; PO / sub-stage info items are contextual
-    const mainFilters = stageFilters.filter(f =>
-      ['originASN','previousPeer','myASN','nextPeer','destinationASN'].includes(f.stage),
-    );
+    // Show all view-specific stage toggles; PO stages rendered as info-only items
+    const PO_STAGES = new Set(['upstreamPO', 'downstreamPO']);
+    const toggleableFilters = stageFilters.filter(f => !PO_STAGES.has(f.stage));
 
     const showExpandControls = onExpandAll !== undefined || onCollapseAll !== undefined;
 
     return (
       <div className={styles.legend}>
         <div className={styles.legendItems}>
-          {mainFilters.map(f => {
+          {toggleableFilters.map(f => {
             const canToggle = f.enabled ? enabledCount > 2 : true;
             return (
               <div

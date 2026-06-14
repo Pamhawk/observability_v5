@@ -110,7 +110,7 @@ export interface SankeyNode {
   // V6 additions
   nodeType?: 'asn' | 'protectedObject' | 'router' | 'interface';
   expandable?: boolean;          // true on collapsed My ASN nodes
-  prefix?: string;               // IP prefix for PO nodes (e.g. "192.0.2.0/24")
+  prefixes?: string[];           // IP prefixes protected by this PO node
   parentAsnId?: string;          // for ingress/router/egress: parent My ASN node ID
   routerDisplayName?: string;    // for interface nodes: which router they belong to
   interfaceDir?: 'ingress' | 'egress';
@@ -147,6 +147,9 @@ export interface StageFilter {
   enabled: boolean;
   selectedASNs: number[]; // ASN IDs, empty means all selected
 }
+
+// Traffic view mode for ASN Path Analysis
+export type TrafficView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic';
 
 // Time range options
 export type TimeRangePreset = '1h' | '1d' | '3d' | '7d' | '30d' | 'custom';

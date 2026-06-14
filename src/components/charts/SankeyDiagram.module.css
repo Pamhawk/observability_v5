@@ -157,6 +157,31 @@
   border-radius: 3px;
 }
 
+/* PO prefix list in tooltip */
+.tooltipPrefixes {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tooltipPrefixLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.tooltipPrefixes .tooltipMono {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.tooltipPrefixMore {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: 2px;
+}
+
 /* Informational legend items (no toggle, no hover effect) */
 .legendItemInfo {
   cursor: default;

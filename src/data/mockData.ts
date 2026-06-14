@@ -100,13 +100,27 @@ export const routers: Router[] = [
   },
 ];
 
-// Stage filter configuration — 5 independent filters
+// Stage filter configuration — per view
 export const defaultStageFilters: StageFilter[] = [
-  { stage: 'originASN',      label: 'Origin ASN',      color: '#F97316', enabled: true, selectedASNs: [] },
-  { stage: 'previousPeer',   label: 'Previous Peer',   color: '#8B5CF6', enabled: true, selectedASNs: [] },
-  { stage: 'myASN',          label: 'My ASNs',         color: '#14B8A6', enabled: true, selectedASNs: [] },
-  { stage: 'nextPeer',       label: 'Next Peer',       color: '#3B82F6', enabled: true, selectedASNs: [] },
-  { stage: 'destinationASN', label: 'Destination ASN', color: '#EC4899', enabled: true, selectedASNs: [] },
+  { stage: 'originASN',      label: 'Origin ASN',        color: '#F97316', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeer',   label: 'Previous Peer',     color: '#8B5CF6', enabled: true, selectedASNs: [] },
+  { stage: 'myASN',          label: 'My ASNs',           color: '#14B8A6', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeer',       label: 'Next Peer',         color: '#3B82F6', enabled: true, selectedASNs: [] },
+  { stage: 'destinationASN', label: 'Destination ASN',   color: '#EC4899', enabled: true, selectedASNs: [] },
+];
+
+export const inboundStageFilters: StageFilter[] = [
+  { stage: 'upstreamPO',     label: 'Protected Objects', color: '#A855F7', enabled: true, selectedASNs: [] },
+  { stage: 'myASN',          label: 'My ASNs',           color: '#14B8A6', enabled: true, selectedASNs: [] },
+  { stage: 'nextPeer',       label: 'Next Peer',         color: '#3B82F6', enabled: true, selectedASNs: [] },
+  { stage: 'destinationASN', label: 'Destination ASN',   color: '#EC4899', enabled: true, selectedASNs: [] },
+];
+
+export const outboundStageFilters: StageFilter[] = [
+  { stage: 'originASN',      label: 'Source',            color: '#F97316', enabled: true, selectedASNs: [] },
+  { stage: 'previousPeer',   label: 'Previous Peer',     color: '#8B5CF6', enabled: true, selectedASNs: [] },
+  { stage: 'myASN',          label: 'My ASNs',           color: '#14B8A6', enabled: true, selectedASNs: [] },
+  { stage: 'downstreamPO',   label: 'Protected Objects', color: '#A855F7', enabled: true, selectedASNs: [] },
 ];
 
 // ─── Sankey nodes ──────────────────────────────────────────────────────────────
@@ -126,6 +140,19 @@ export const sankeyNodes: SankeyNode[] = [
   { id: 'prev-3356', name: 'Lumen',     asnNumber: 3356,  stage: 'previousPeer', nodeType: 'asn', trafficGbps: 38, country: 'United States', state: 'Colorado',            city: 'Denver',        inFlows: 2, outFlows: 3, isMyASN: false },
   { id: 'prev-1299', name: 'Telia',     asnNumber: 1299,  stage: 'previousPeer', nodeType: 'asn', trafficGbps: 29, country: 'Sweden',        state: 'Stockholm County',    city: 'Stockholm',     inFlows: 2, outFlows: 1, isMyASN: false },
   { id: 'prev-6939', name: 'Hurricane', asnNumber: 6939,  stage: 'previousPeer', nodeType: 'asn', trafficGbps: 29, country: 'United States', state: 'California',          city: 'Fremont',       inFlows: 2, outFlows: 3, isMyASN: false },
+
+  // ── Upstream Protected Objects (ingress side — shown in Inbound Traffic view) ─
+  { id: 'san-upo-64512-1', name: 'NYC-WebFarm',    asnNumber: 64512, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 35, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 2, outFlows: 1, isMyASN: true, prefixes: ['203.0.113.0/24', '203.0.113.128/25', '198.18.10.0/24'] },
+  { id: 'san-upo-64512-2', name: 'NYC-Hosting',    asnNumber: 64512, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 40, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 3, outFlows: 1, isMyASN: true, prefixes: ['198.18.11.0/23', '198.18.12.0/24', '198.18.13.0/26', '198.18.14.0/27', '198.18.15.0/28'] },
+  { id: 'san-upo-64513-1', name: 'LAX-Anycast',    asnNumber: 64513, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 2, outFlows: 1, isMyASN: true, prefixes: ['198.18.20.0/24', '198.18.21.0/25'] },
+  { id: 'san-upo-64513-2', name: 'LAX-Servers',    asnNumber: 64513, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 18, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 0, outFlows: 1, isMyASN: true, prefixes: ['198.18.22.0/24', '198.18.22.128/26'] },
+  { id: 'san-upo-64514-1', name: 'FRA-Enterprise', asnNumber: 64514, stage: 'upstreamPO', nodeType: 'protectedObject', trafficGbps: 43, country: 'Germany',       state: 'Hesse',      city: 'Frankfurt',   inFlows: 2, outFlows: 1, isMyASN: true, prefixes: ['198.18.30.0/24', '198.18.30.0/25', '198.18.30.128/25'] },
+
+  // ── Downstream Protected Objects (egress side — shown in Outbound Traffic view) ─
+  { id: 'san-dpo-64512-1', name: 'NYC-CDN-Out',    asnNumber: 64512, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 75, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 1, outFlows: 3, isMyASN: true, prefixes: ['198.18.50.0/24', '198.18.51.0/24', '198.18.52.0/24'] },
+  { id: 'san-dpo-64512-2', name: 'NYC-Direct-In',  asnNumber: 64512, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 12, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 1, outFlows: 0, isMyASN: true, prefixes: ['198.18.55.0/24'] },
+  { id: 'san-dpo-64513-1', name: 'LAX-Transit-Out',asnNumber: 64513, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 47, country: 'United States', state: 'California', city: 'Los Angeles', inFlows: 1, outFlows: 2, isMyASN: true, prefixes: ['198.18.60.0/23', '198.18.61.0/24'] },
+  { id: 'san-dpo-64514-1', name: 'FRA-EU-Out',     asnNumber: 64514, stage: 'downstreamPO', nodeType: 'protectedObject', trafficGbps: 43, country: 'Germany',       state: 'Hesse',      city: 'Frankfurt',   inFlows: 1, outFlows: 2, isMyASN: true, prefixes: ['198.18.70.0/22', '198.18.71.0/24', '198.18.72.0/24', '198.18.73.0/25'] },
 
   // ── My ASNs — marked expandable (click to drill into routers/interfaces) ───
   { id: 'my-64512', name: 'MyNet-Core', asnNumber: 64512, stage: 'myASN', nodeType: 'asn', trafficGbps: 75, country: 'United States', state: 'New York',   city: 'New York',    inFlows: 2, outFlows: 1, isMyASN: true, expandable: true },
