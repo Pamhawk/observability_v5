@@ -159,6 +159,12 @@ export function ASNPathAnalysis() {
   // Which router/interface node IDs are "pinned" from the My ASN popup checkbox
   const [routerFilterSelections, setRouterFilterSelections] = useState<Set<string>>(new Set());
 
+  // All expandable My ASN node IDs (static)
+  const allExpandableASNIds = useMemo(
+    () => sankeyNodes.filter(n => n.stage === 'myASN' && n.expandable).map(n => n.id),
+    [],
+  );
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleStageToggle = useCallback((stage: string) => {
@@ -176,6 +182,15 @@ export function ASNPathAnalysis() {
       if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
       return next;
     });
+  }, []);
+
+  const handleExpandAll = useCallback(() => {
+    setExpandedASNs(new Set(allExpandableASNIds));
+  }, [allExpandableASNIds]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandedASNs(new Set());
+    setRouterFilterSelections(new Set());
   }, []);
 
   // ALL node clicks open the popup (expand/collapse is icon-only)
@@ -406,6 +421,9 @@ export function ASNPathAnalysis() {
               dynamicDepths={computedSankeyData.dynamicDepths}
               width={chartSize.width}
               height={chartSize.height}
+              onExpandAll={handleExpandAll}
+              onCollapseAll={handleCollapseAll}
+              allExpanded={expandedASNs.size >= allExpandableASNIds.length}
             />
             <button
               className={styles.downloadBtn}

@@ -7,10 +7,47 @@
 /* Legend */
 .legend {
   display: flex;
-  justify-content: center;
-  gap: 24px;
-  height: 30px;
+  justify-content: space-between;
   align-items: center;
+  height: 30px;
+  padding: 0 4px;
+}
+
+.legendItems {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.legendControls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.legendExpandBtn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  line-height: 1.4;
+}
+
+.legendExpandBtn:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary, #e5e7eb);
+}
+
+.legendExpandBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .legendItem {

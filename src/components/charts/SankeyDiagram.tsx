@@ -18,6 +18,10 @@ interface SankeyDiagramProps {
   dynamicDepths?: Record<string, number>;
   width?: number;
   height?: number;
+  /** Global expand/collapse all handlers */
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  allExpanded?: boolean;
 }
 
 interface TooltipData {
@@ -71,6 +75,9 @@ export function SankeyDiagram({
   dynamicDepths = {},
   width = 900,
   height = 500,
+  onExpandAll,
+  onCollapseAll,
+  allExpanded = false,
 }: SankeyDiagramProps) {
   const chartRef = useRef<ReactECharts>(null);
   const containerDivRef = useRef<HTMLDivElement>(null);
@@ -399,39 +406,63 @@ export function SankeyDiagram({
       ['originASN','previousPeer','myASN','nextPeer','destinationASN'].includes(f.stage),
     );
 
+    const showExpandControls = onExpandAll !== undefined || onCollapseAll !== undefined;
+
     return (
       <div className={styles.legend}>
-        {mainFilters.map(f => {
-          const canToggle = f.enabled ? enabledCount > 2 : true;
-          return (
-            <div
-              key={f.stage}
-              className={`${styles.legendItem} ${!f.enabled ? styles.legendItemDisabled : ''} ${!canToggle ? styles.legendItemLocked : ''}`}
-              onClick={() => canToggle && onStageToggle?.(f.stage)}
-              title={!canToggle ? 'At least 2 stages must remain visible' : f.enabled ? `Hide ${f.label}` : `Show ${f.label}`}
+        <div className={styles.legendItems}>
+          {mainFilters.map(f => {
+            const canToggle = f.enabled ? enabledCount > 2 : true;
+            return (
+              <div
+                key={f.stage}
+                className={`${styles.legendItem} ${!f.enabled ? styles.legendItemDisabled : ''} ${!canToggle ? styles.legendItemLocked : ''}`}
+                onClick={() => canToggle && onStageToggle?.(f.stage)}
+                title={!canToggle ? 'At least 2 stages must remain visible' : f.enabled ? `Hide ${f.label}` : `Show ${f.label}`}
+              >
+                <span className={styles.legendDot} style={{ backgroundColor: f.enabled ? f.color : undefined }} />
+                <span className={styles.legendLabel}>{f.label}</span>
+              </div>
+            );
+          })}
+          {hasPO && (
+            <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
+              <span className={styles.legendDot} style={{ backgroundColor: 'transparent', border: '2px dashed #A855F7', borderRadius: '3px' }} />
+              <span className={styles.legendLabel}>Protected Objects</span>
+            </div>
+          )}
+          {anyExpanded && (
+            <>
+              <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
+                <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myIngressInterface }} />
+                <span className={styles.legendLabel}>↓ Ingress</span>
+              </div>
+              <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
+                <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myRouter }} />
+                <span className={styles.legendLabel}>Router</span>
+              </div>
+            </>
+          )}
+        </div>
+        {showExpandControls && (
+          <div className={styles.legendControls}>
+            <button
+              className={styles.legendExpandBtn}
+              onClick={onExpandAll}
+              disabled={allExpanded}
+              title="Expand all My ASN nodes"
             >
-              <span className={styles.legendDot} style={{ backgroundColor: f.enabled ? f.color : undefined }} />
-              <span className={styles.legendLabel}>{f.label}</span>
-            </div>
-          );
-        })}
-        {hasPO && (
-          <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-            <span className={styles.legendDot} style={{ backgroundColor: 'transparent', border: '2px dashed #A855F7', borderRadius: '3px' }} />
-            <span className={styles.legendLabel}>Protected Objects</span>
+              Expand All
+            </button>
+            <button
+              className={styles.legendExpandBtn}
+              onClick={onCollapseAll}
+              disabled={!anyExpanded}
+              title="Collapse all My ASN nodes"
+            >
+              Collapse All
+            </button>
           </div>
-        )}
-        {anyExpanded && (
-          <>
-            <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myIngressInterface }} />
-              <span className={styles.legendLabel}>↓ Ingress</span>
-            </div>
-            <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
-              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.myRouter }} />
-              <span className={styles.legendLabel}>Router</span>
-            </div>
-          </>
         )}
       </div>
     );
