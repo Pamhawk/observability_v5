@@ -3,6 +3,7 @@ import { Camera } from 'lucide-react';
 import { Card, TimeRangeSelector, ExportDropdown } from '../common';
 import { SankeyDiagram } from '../charts';
 import { StageFilters } from './StageFilters';
+import { CustomViewBuilder } from './CustomViewBuilder';
 import { MyASNPopup } from './MyASNPopup';
 import { FlowPopup } from './FlowPopup';
 import { ASNPathTable } from './ASNPathTable';
@@ -24,7 +25,7 @@ import {
   inboundStageFilters,
   outboundStageFilters,
 } from '../../data/mockData';
-import type { SankeyNode, SankeyLink, StageFilter, TimeRange, SankeyStage, TrafficView } from '../../types';
+import type { SankeyNode, SankeyLink, StageFilter, TimeRange, SankeyStage, TrafficView, CustomViewConfig } from '../../types';
 import styles from './ASNPathAnalysis.module.css';
 
 // My ASN sub-stages: visibility follows myASN filter
@@ -42,14 +43,16 @@ const INDEPENDENT_STAGES: SankeyStage[] = [
   'originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN',
 ];
 
-// Per-view stage sequences for dynamic depth mapping
-const VIEW_COMPACT_ORDER: Record<TrafficView, SankeyStage[]> = {
+// Per-view stage sequences for dynamic depth mapping (excludes 'custom' which is derived at runtime)
+type StandardView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic';
+
+const VIEW_COMPACT_ORDER: Record<StandardView, SankeyStage[]> = {
   networkTransit: ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN'],
   inboundTraffic: ['upstreamPO', 'myASN', 'nextPeer', 'destinationASN'],
   outboundTraffic: ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO'],
 };
 
-const VIEW_EXPANDED_ORDER: Record<TrafficView, SankeyStage[]> = {
+const VIEW_EXPANDED_ORDER: Record<StandardView, SankeyStage[]> = {
   networkTransit: ['originASN', 'previousPeer', 'upstreamPO', 'myIngressInterface', 'myRouter', 'downstreamPO', 'nextPeer', 'destinationASN'],
   inboundTraffic: ['upstreamPO', 'myIngressInterface', 'myRouter', 'nextPeer', 'destinationASN'],
   outboundTraffic: ['originASN', 'previousPeer', 'myIngressInterface', 'myRouter', 'downstreamPO'],
@@ -65,8 +68,11 @@ function computeDynamicDepths(
   enabledStages: Set<string>,
   anyExpanded: boolean,
   presentStages: Set<string>,
+  customOrders?: { compact: SankeyStage[], expanded: SankeyStage[] },
 ): Record<string, number> {
-  const seq = anyExpanded ? VIEW_EXPANDED_ORDER[view] : VIEW_COMPACT_ORDER[view];
+  const seq = view === 'custom'
+    ? (anyExpanded ? (customOrders?.expanded ?? []) : (customOrders?.compact ?? []))
+    : (anyExpanded ? VIEW_EXPANDED_ORDER[view as StandardView] : VIEW_COMPACT_ORDER[view as StandardView]);
   const depths: Record<string, number> = {};
   let d = 0;
   for (const stage of seq) {
@@ -149,19 +155,54 @@ function buildBridgedLinks(
 }
 
 const VIEW_LABELS: Record<TrafficView, string> = {
-  networkTransit: 'Network Transit',
-  inboundTraffic: 'Inbound Traffic',
+  networkTransit:  'Network Transit',
+  inboundTraffic:  'Inbound Traffic',
   outboundTraffic: 'Outbound Traffic',
+  custom:          'Custom',
 };
 
-const VIEW_FILTERS: Record<TrafficView, StageFilter[]> = {
-  networkTransit: defaultStageFilters,
-  inboundTraffic: inboundStageFilters,
+const VIEW_FILTERS: Record<StandardView, StageFilter[]> = {
+  networkTransit:  defaultStageFilters,
+  inboundTraffic:  inboundStageFilters,
   outboundTraffic: outboundStageFilters,
 };
 
+const CUSTOM_STAGE_COLORS: Record<SankeyStage, string> = {
+  originASN: '#F97316', previousPeer: '#9333EA', upstreamPO: '#818CF8',
+  myASN: '#14B8A6', myIngressInterface: '#99F6E4', myRouter: '#0E9F8E',
+  downstreamPO: '#FB923C', nextPeer: '#9333EA', destinationASN: '#EC4899',
+};
+const CUSTOM_STAGE_LABELS: Partial<Record<SankeyStage, string>> = {
+  originASN: 'Origin', previousPeer: 'Previous Peer', upstreamPO: 'Upstream PO',
+  myASN: 'My ASN', downstreamPO: 'Downstream PO', nextPeer: 'Next Peer',
+  destinationASN: 'Destination',
+};
+// Canonical filter order for custom view (ingress/router are not stageFilters — handled via forceExpanded)
+const CUSTOM_FILTER_ORDER: SankeyStage[] = [
+  'originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN',
+];
+function buildCustomStageFilters(selectedColumns: Set<SankeyStage>): StageFilter[] {
+  return CUSTOM_FILTER_ORDER
+    .filter(s => selectedColumns.has(s))
+    .map(s => ({
+      stage: s,
+      label: CUSTOM_STAGE_LABELS[s] ?? s,
+      color: CUSTOM_STAGE_COLORS[s] ?? '#999',
+      enabled: true,
+      selectedASNs: [],
+    }));
+}
+
+const DEFAULT_CUSTOM_COLUMNS: Set<SankeyStage> = new Set([
+  'originASN', 'previousPeer', 'myASN', 'nextPeer', 'destinationASN',
+]);
+
 export function ASNPathAnalysis() {
   const [trafficView, setTrafficView] = useState<TrafficView>('networkTransit');
+  const [customViewConfig, setCustomViewConfig] = useState<CustomViewConfig>({
+    name: 'My Custom View',
+    selectedColumns: DEFAULT_CUSTOM_COLUMNS,
+  });
   const [stageFilters, setStageFilters] = useState<StageFilter[]>(defaultStageFilters);
   const [timeRange, setTimeRange] = useState<TimeRange>(() => ({
     preset: '1h',
@@ -184,10 +225,22 @@ export function ASNPathAnalysis() {
 
   // Reset filters and expansion when view changes
   useEffect(() => {
-    setStageFilters(VIEW_FILTERS[trafficView]);
+    if (trafficView !== 'custom') {
+      setStageFilters(VIEW_FILTERS[trafficView]);
+    } else {
+      setStageFilters(buildCustomStageFilters(customViewConfig.selectedColumns));
+    }
     setExpandedASNs(new Set());
     setRouterFilterSelections(new Set());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trafficView]);
+
+  // Rebuild stageFilters when custom columns change (without resetting expanded state)
+  useEffect(() => {
+    if (trafficView === 'custom') {
+      setStageFilters(buildCustomStageFilters(customViewConfig.selectedColumns));
+    }
+  }, [customViewConfig, trafficView]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -240,6 +293,10 @@ export function ASNPathAnalysis() {
     const stageOn = (s: string) => enabledStages.has(s);
     const view = trafficView;
 
+    // Custom view: ingress/router selected → force all My ASN nodes to always be expanded
+    const cols = customViewConfig.selectedColumns;
+    const forceExpanded = view === 'custom' && (cols.has('myIngressInterface') || cols.has('myRouter'));
+
     // A My ASN is expanded if manually expanded OR any of its sub-nodes are pinned
     const isMyAsnExpanded = (asnNodeId: string): boolean => {
       if (expandedASNs.has(asnNodeId)) return true;
@@ -254,22 +311,23 @@ export function ASNPathAnalysis() {
 
     // ── Nodes — two-pass ────────────────────────────────────────────────────
     const nodes: SankeyNode[] = [];
-    // Track which My ASN asnNumbers are visible (for PO node inclusion)
     const visibleMyAsnNumbers = new Set<number>();
 
     // Pass 1: build non-PO nodes
     for (const node of sankeyNodes) {
       if (node.stage === 'upstreamPO' || node.stage === 'downstreamPO') continue;
 
-      // Sub-stages of myASN follow the myASN filter
-      const stageEnabled = MY_ASN_SUB_STAGES.has(node.stage)
-        ? stageOn('myASN') : stageOn(node.stage);
+      // Sub-stages and myASN itself: enabled by myASN filter OR by forceExpanded
+      const isMyAsnRelated = node.stage === 'myASN' || MY_ASN_SUB_STAGES.has(node.stage);
+      const stageEnabled = isMyAsnRelated
+        ? (stageOn('myASN') || forceExpanded)
+        : stageOn(node.stage);
       if (!stageEnabled) continue;
       if (!passesFilter(node)) continue;
 
       if (node.stage === 'myASN') {
         visibleMyAsnNumbers.add(node.asnNumber);
-        if (isMyAsnExpanded(node.id)) {
+        if (isMyAsnExpanded(node.id) || forceExpanded) {
           nodes.push(...(myAsnExpandedNodes[node.id] ?? []));
         } else {
           nodes.push(node);
@@ -280,7 +338,6 @@ export function ASNPathAnalysis() {
     }
 
     // Pass 2: add PO nodes only for visible My ASNs
-    // upstreamPO: sits between previousPeer and myASN
     if (stageOn('upstreamPO')) {
       for (const node of sankeyNodes) {
         if (node.stage === 'upstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
@@ -288,7 +345,6 @@ export function ASNPathAnalysis() {
         }
       }
     }
-    // downstreamPO: sits between myASN and nextPeer
     if (stageOn('downstreamPO')) {
       for (const node of sankeyNodes) {
         if (node.stage === 'downstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
@@ -298,42 +354,49 @@ export function ASNPathAnalysis() {
     }
 
     // ── Links — view-specific pools ────────────────────────────────────────
-    // Bridge function handles hidden/disabled nodes as transitive pass-throughs.
     const allLinks: SankeyLink[] = [];
 
     if (view === 'networkTransit') {
       allLinks.push(...originToPrevLinks);
-      allLinks.push(...prevToUpstreamPOLinks);    // UPO hidden → bridges prev→myASN
-      allLinks.push(...originToUpstreamPOLinks);  // UPO hidden → bridges origin→myASN
+      allLinks.push(...prevToUpstreamPOLinks);
+      allLinks.push(...originToUpstreamPOLinks);
       allLinks.push(...prevToMyAsnDirectLinks);
       allLinks.push(...myAsnToNextDirectLinks);
-      allLinks.push(...downstreamPOToNextLinks);  // DPO hidden → bridges myASN→next
-      allLinks.push(...downstreamPOToDestLinks);  // DPO hidden → bridges myASN→dest
+      allLinks.push(...downstreamPOToNextLinks);
+      allLinks.push(...downstreamPOToDestLinks);
       allLinks.push(...nextToDestLinks);
     } else if (view === 'inboundTraffic') {
-      // PO (left) → myASN → next → dest; DPO hidden and bridged through
-      allLinks.push(...myAsnToNextDirectLinks);   // myASN→next bypass
-      allLinks.push(...downstreamPOToNextLinks);  // DPO hidden → bridges myASN→next
-      allLinks.push(...downstreamPOToDestLinks);  // DPO hidden → bridges myASN→dest
+      allLinks.push(...myAsnToNextDirectLinks);
+      allLinks.push(...downstreamPOToNextLinks);
+      allLinks.push(...downstreamPOToDestLinks);
       allLinks.push(...nextToDestLinks);
-    } else {
-      // outboundTraffic: origin → prev → myASN → PO (right); UPO hidden and bridged
+    } else if (view === 'outboundTraffic') {
       allLinks.push(...originToPrevLinks);
-      allLinks.push(...prevToUpstreamPOLinks);    // UPO hidden → bridges prev→myASN/ingress
-      allLinks.push(...originToUpstreamPOLinks);  // UPO hidden → bridges origin→myASN/ingress
+      allLinks.push(...prevToUpstreamPOLinks);
+      allLinks.push(...originToUpstreamPOLinks);
       allLinks.push(...prevToMyAsnDirectLinks);
+    } else {
+      // custom: push all pools; bridge eliminates links to unselected node stages
+      allLinks.push(...originToPrevLinks);
+      allLinks.push(...originToUpstreamPOLinks);
+      allLinks.push(...prevToUpstreamPOLinks);
+      allLinks.push(...prevToMyAsnDirectLinks);
+      allLinks.push(...myAsnToNextDirectLinks);
+      allLinks.push(...downstreamPOToNextLinks);
+      allLinks.push(...downstreamPOToDestLinks);
+      allLinks.push(...nextToDestLinks);
     }
 
     // ── My ASN internal links (collapsed vs expanded per-ASN) ────────────
     for (const asnNode of sankeyNodes.filter(n => n.stage === 'myASN')) {
-      const f = stageFilters.find(x => x.stage === 'myASN');
-      if (f?.selectedASNs.length && !f.selectedASNs.includes(asnNode.asnNumber)) continue;
+      if (!forceExpanded) {
+        const f = stageFilters.find(x => x.stage === 'myASN');
+        if (f?.selectedASNs.length && !f.selectedASNs.includes(asnNode.asnNumber)) continue;
+      }
 
-      if (stageOn('myASN') && isMyAsnExpanded(asnNode.id)) {
-        // Expanded: UPO(src) → ingress → router → DPO(dst); hidden ends are bridged per view
+      if ((stageOn('myASN') && isMyAsnExpanded(asnNode.id)) || forceExpanded) {
         allLinks.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
       } else {
-        // Collapsed: UPO → myASN → DPO; hidden PO nodes are bridged per view
         allLinks.push(...upstreamPOToMyAsnLinks.filter(l => l.target === asnNode.id));
         allLinks.push(...myAsnToDownstreamPOLinks.filter(l => l.source === asnNode.id));
       }
@@ -352,9 +415,6 @@ export function ASNPathAnalysis() {
     );
 
     // ── Semantic guard ─────────────────────────────────────────────────────
-    // Some stage combinations would let the bridge create nonsensical shortcuts.
-    // previousPeer → nextPeer is the canonical example: those two ASNs never
-    // peer directly — traffic MUST transit the customer's own network.
     const semanticLinks = validLinks.filter(l => {
       const src = NODE_STAGE.get(l.source);
       const dst = NODE_STAGE.get(l.target);
@@ -365,10 +425,25 @@ export function ASNPathAnalysis() {
     // ── Dynamic depths ─────────────────────────────────────────────────────
     const anyExpanded = nodes.some(n => MY_ASN_SUB_STAGES.has(n.stage));
     const presentStages = new Set(nodes.map(n => n.stage));
-    const dynamicDepths = computeDynamicDepths(view, enabledStages, anyExpanded, presentStages);
+
+    // For custom view: derive stage order from selected columns
+    let customOrders: { compact: SankeyStage[], expanded: SankeyStage[] } | undefined;
+    if (view === 'custom') {
+      const COMPACT_BASE: SankeyStage[] = ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN'];
+      const EXPANDED_BASE: SankeyStage[] = ['originASN', 'previousPeer', 'upstreamPO', 'myIngressInterface', 'myRouter', 'downstreamPO', 'nextPeer', 'destinationASN'];
+      const compact = COMPACT_BASE.filter(s => cols.has(s));
+      const expanded = EXPANDED_BASE.filter(s =>
+        cols.has(s) || (MY_ASN_SUB_STAGES.has(s) && (cols.has('myASN') || forceExpanded))
+      );
+      customOrders = { compact, expanded };
+    }
+
+    // When forceExpanded, treat myASN as enabled for depth-slot allocation of sub-stages
+    const depthEnabledStages = forceExpanded ? new Set([...enabledStages, 'myASN']) : enabledStages;
+    const dynamicDepths = computeDynamicDepths(view, depthEnabledStages, anyExpanded, presentStages, customOrders);
 
     return { nodes, links: semanticLinks, dynamicDepths };
-  }, [stageFilters, expandedASNs, routerFilterSelections, trafficView]);
+  }, [stageFilters, expandedASNs, routerFilterSelections, trafficView, customViewConfig]);
 
   // Nodes for StageFilters dropdown options
   const asnNodesForFilters = useMemo(
@@ -414,6 +489,11 @@ export function ASNPathAnalysis() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  const isForceExpanded = trafficView === 'custom' && (
+    customViewConfig.selectedColumns.has('myIngressInterface') ||
+    customViewConfig.selectedColumns.has('myRouter')
+  );
+
   return (
     <div className={styles.container}>
       {/* Header */}
@@ -434,6 +514,11 @@ export function ASNPathAnalysis() {
           <ExportDropdown />
         </div>
       </div>
+
+      {/* Custom view column builder */}
+      {trafficView === 'custom' && (
+        <CustomViewBuilder config={customViewConfig} onChange={setCustomViewConfig} />
+      )}
 
       {/* Stage Filters — supports add/remove columns */}
       <StageFilters
@@ -459,9 +544,9 @@ export function ASNPathAnalysis() {
               dynamicDepths={computedSankeyData.dynamicDepths}
               width={chartSize.width}
               height={chartSize.height}
-              onExpandAll={handleExpandAll}
-              onCollapseAll={handleCollapseAll}
-              allExpanded={expandedASNs.size >= allExpandableASNIds.length}
+              onExpandAll={isForceExpanded ? undefined : handleExpandAll}
+              onCollapseAll={isForceExpanded ? undefined : handleCollapseAll}
+              allExpanded={isForceExpanded || expandedASNs.size >= allExpandableASNIds.length}
             />
             <button
               className={styles.downloadBtn}

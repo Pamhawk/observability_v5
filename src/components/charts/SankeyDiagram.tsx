@@ -43,15 +43,15 @@ interface NodeLayout {
 
 // ── Node colors by stage ───────────────────────────────────────────────────
 const STAGE_COLORS: Record<SankeyStage, string> = {
-  originASN:          '#F97316',
-  previousPeer:       '#8B5CF6',
-  upstreamPO:         '#A855F7',
-  myASN:              '#14B8A6',
-  myIngressInterface: '#99F6E4',
-  myRouter:           '#0E9F8E',
-  downstreamPO:       '#A855F7',
-  nextPeer:           '#3B82F6',
-  destinationASN:     '#EC4899',
+  originASN:          '#F97316',  // orange
+  previousPeer:       '#9333EA',  // proper purple
+  upstreamPO:         '#818CF8',  // indigo  (left of teal, cool)
+  myASN:              '#14B8A6',  // teal
+  myIngressInterface: '#99F6E4',  // light teal
+  myRouter:           '#0E9F8E',  // dark teal
+  downstreamPO:       '#FB923C',  // amber   (right of teal, warm)
+  nextPeer:           '#9333EA',  // proper purple (symmetric with previousPeer)
+  destinationASN:     '#EC4899',  // pink
 };
 
 // ECharts series margins — keep in sync with the series option below
@@ -388,9 +388,8 @@ export function SankeyDiagram({
   );
 
   const renderLegend = () => {
-    const hasPO = nodes.some(n =>
-      n.stage === 'upstreamPO' || n.stage === 'downstreamPO',
-    );
+    const hasUPO = nodes.some(n => n.stage === 'upstreamPO');
+    const hasDPO = nodes.some(n => n.stage === 'downstreamPO');
     // Show all view-specific stage toggles; PO stages rendered as info-only items
     const PO_STAGES = new Set(['upstreamPO', 'downstreamPO']);
     const toggleableFilters = stageFilters.filter(f => !PO_STAGES.has(f.stage));
@@ -414,10 +413,16 @@ export function SankeyDiagram({
               </div>
             );
           })}
-          {hasPO && (
+          {hasUPO && (
             <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
               <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.upstreamPO }} />
-              <span className={styles.legendLabel}>Protected Objects</span>
+              <span className={styles.legendLabel}>Upstream PO</span>
+            </div>
+          )}
+          {hasDPO && (
+            <div className={`${styles.legendItem} ${styles.legendItemInfo}`}>
+              <span className={styles.legendDot} style={{ backgroundColor: STAGE_COLORS.downstreamPO }} />
+              <span className={styles.legendLabel}>Downstream PO</span>
             </div>
           )}
           {anyExpanded && (

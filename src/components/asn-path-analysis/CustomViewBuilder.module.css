@@ -1,0 +1,89 @@
+.builder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+
+.nameInput {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.columns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chipWrapper {
+  display: contents;
+}
+
+.groupSep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background-color 0.12s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+}
+
+.chipSelected {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+  font-weight: 500;
+}
+
+.chipDisabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.chipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

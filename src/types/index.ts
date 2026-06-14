@@ -149,7 +149,13 @@ export interface StageFilter {
 }
 
 // Traffic view mode for ASN Path Analysis
-export type TrafficView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic';
+export type TrafficView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic' | 'custom';
+
+// Custom view configuration (user-defined column selection)
+export interface CustomViewConfig {
+  name: string;
+  selectedColumns: Set<SankeyStage>;
+}
 
 // Time range options
 export type TimeRangePreset = '1h' | '1d' | '3d' | '7d' | '30d' | 'custom';
