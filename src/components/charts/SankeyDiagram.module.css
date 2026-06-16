@@ -22,11 +22,11 @@
 }
 
 /* Expand / Collapse All toggle button — absolute, top-right of chart area
-   Offset from right to sit beside (not behind) the Download PNG button at right:8px */
+   Offset from right to clear both the Download PNG (right:8) and Lasso (right:48) buttons */
 .expandToggleBtn {
   position: absolute;
   top: 8px;
-  right: 48px;
+  right: 96px;
   z-index: 20;
   font-size: 11px;
   padding: 3px 10px;

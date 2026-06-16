@@ -37,13 +37,17 @@ export function StageFilters({ filters, nodes, onChange, onStageToggle }: StageF
   };
 
   const getOptionsForStage = (stage: string) => {
+    const seen = new Set<number>();
     return nodes
       .filter(n => n.stage === stage)
+      .filter(n => {
+        if (seen.has(n.asnNumber)) return false;
+        seen.add(n.asnNumber);
+        return true;
+      })
       .map(n => ({
         value: n.asnNumber,
-        label: n.nodeType === 'protectedObject' && n.prefix
-          ? `${n.name} (${n.prefix})`
-          : `${n.name} (AS${n.asnNumber})`,
+        label: `${n.name} (AS${n.asnNumber})`,
       }));
   };
 

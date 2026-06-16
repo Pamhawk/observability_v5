@@ -396,38 +396,6 @@
   box-sizing: border-box;
 }
 
-/* Hover-only PNG download icon overlaid on widget chart */
-.widgetPngBtn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s, background 0.15s;
-}
-
-.widgetChart:hover .widgetPngBtn {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.widgetPngBtn:hover {
-  background: #fff;
-  color: var(--color-text-primary);
-}
 
 .widgetActions {
   display: flex;

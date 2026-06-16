@@ -108,10 +108,11 @@ export interface SankeyNode {
   outFlows: number;
   isMyASN: boolean;
   // V6 additions
-  nodeType?: 'asn' | 'protectedObject' | 'router' | 'interface';
+  nodeType?: 'asn' | 'protectedObject' | 'router' | 'interface' | 'prefix';
   expandable?: boolean;          // true on collapsed My ASN nodes
   prefixes?: string[];           // IP prefixes protected by this PO node
   parentAsnId?: string;          // for ingress/router/egress: parent My ASN node ID
+  parentPOId?: string;           // for prefix sub-nodes: parent PO node ID
   routerDisplayName?: string;    // for interface nodes: which router they belong to
   interfaceDir?: 'ingress' | 'egress';
 }
@@ -149,7 +150,7 @@ export interface StageFilter {
 }
 
 // Traffic view mode for ASN Path Analysis
-export type TrafficView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic' | 'custom';
+export type TrafficView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic' | 'eastWest' | 'custom';
 
 // Custom view configuration (user-defined column selection)
 export interface CustomViewConfig {

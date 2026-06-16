@@ -123,6 +123,12 @@ export const outboundStageFilters: StageFilter[] = [
   { stage: 'downstreamPO', label: 'Downstream PO',  color: '#FB923C', enabled: true, selectedASNs: [] },
 ];
 
+export const eastWestStageFilters: StageFilter[] = [
+  { stage: 'upstreamPO',   label: 'Upstream PO',   color: '#818CF8', enabled: true, selectedASNs: [] },
+  { stage: 'myASN',        label: 'My ASNs',        color: '#14B8A6', enabled: true, selectedASNs: [] },
+  { stage: 'downstreamPO', label: 'Downstream PO',  color: '#FB923C', enabled: true, selectedASNs: [] },
+];
+
 // ─── Sankey nodes ──────────────────────────────────────────────────────────────
 // POs are customer-owned IP prefixes (Protected Objects), always adjacent to My ASN.
 // Flow: originASN → previousPeer → upstreamPO → myASN → downstreamPO → nextPeer → destinationASN

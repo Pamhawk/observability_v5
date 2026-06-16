@@ -89,6 +89,47 @@
   color: var(--color-text-primary);
 }
 
+/* Lasso zoom button — mirrors downloadBtn, positioned to its left */
+.lassoBtn {
+  position: absolute;
+  top: 8px;
+  right: 48px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.sankeyContainer:hover .lassoBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lassoBtn:hover {
+  background: #fff;
+  color: var(--color-text-primary);
+}
+
+.lassoBtnActive {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #6366F1 !important;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.2) !important;
+}
+
 
 .tableSection {
   margin-top: var(--spacing-md);

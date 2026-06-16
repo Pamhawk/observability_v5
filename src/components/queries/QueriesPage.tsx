@@ -7,7 +7,7 @@ import {
 } from 'react-grid-layout';
 import {
   Plus, Edit2, Trash2, Download, MoreVertical,
-  ChevronDown, ExternalLink, AlertTriangle, Camera,
+  ChevronDown, ExternalLink, AlertTriangle,
 } from 'lucide-react';
 import { AddQueryPopup, type WidgetSelection } from './AddQueryPopup';
 import { DashboardEditPopup } from './DashboardEditPopup';
@@ -556,21 +556,6 @@ export function QueriesPage() {
                   >
                     <div className={styles.widgetChart}>
                       {renderWidgetChart(widget, query)}
-                      <button
-                        className={styles.widgetPngBtn}
-                        title="Download as PNG"
-                        onClick={() => {
-                          const wrapper = document.querySelector(`[data-widget-id="${widget.id}"]`);
-                          const canvas = wrapper?.querySelector('canvas') as HTMLCanvasElement | null;
-                          if (!canvas) return;
-                          const link = document.createElement('a');
-                          link.download = `${widgetTitle.replace(/\s+/g, '-').toLowerCase()}.png`;
-                          link.href = canvas.toDataURL('image/png');
-                          link.click();
-                        }}
-                      >
-                        <Camera size={14} />
-                      </button>
                     </div>
                   </Card>
                 </div>

@@ -1,5 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
-import { X, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import ReactECharts from 'echarts-for-react';
+import type { EChartsOption } from 'echarts';
 import { Modal, Toggle, TimeRangeSelector, ExportDropdown } from '../common';
 import { TimeSeriesChart, BarChart, ChartExportWrapper } from '../charts';
 import {
@@ -23,7 +25,17 @@ interface PrefixItem {
   percent: number;
 }
 
+type TabType = 'ips' | 'traffic';
+
+const PO_COLORS = [
+  '#818CF8', '#6366F1', '#4F46E5', '#A5B4FC',
+  '#C7D2FE', '#FB923C', '#F97316', '#FDBA74',
+  '#FED7AA', '#FEF3C7',
+];
+
 export function POPopup({ isOpen, onClose, node }: Props) {
+  const chartRef = useRef<ReactECharts>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('ips');
   const [unit, setUnit] = useState<'bps' | 'pps'>('bps');
   const [timeRange, setTimeRange] = useState<TimeRange>(() => ({
     preset: '1h',
@@ -31,8 +43,6 @@ export function POPopup({ isOpen, onClose, node }: Props) {
     end: new Date(),
   }));
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [rootExpanded, setRootExpanded] = useState(true);
-  const [treeSearch, setTreeSearch] = useState('');
 
   // Distribute total traffic across prefixes with deterministic pseudo-random weights
   const prefixItems = useMemo((): PrefixItem[] => {
@@ -48,7 +58,6 @@ export function POPopup({ isOpen, onClose, node }: Props) {
     }));
   }, [node]);
 
-  // Scale factor from selected tree item
   const scaleFactor = useMemo(() => {
     if (!selectedItemId || selectedItemId === 'po-root') return 1;
     const item = prefixItems.find(p => p.id === selectedItemId);
@@ -62,12 +71,79 @@ export function POPopup({ isOpen, onClose, node }: Props) {
 
   const trafficData = useMemo(() => generateTrafficData(24), []);
 
-  // Reset selection when the PO node changes
+  // Reset selection when PO node changes
   useEffect(() => {
     setSelectedItemId(null);
-    setTreeSearch('');
-    setRootExpanded(true);
+    setActiveTab('ips');
   }, [node]);
+
+  // Sync sunburst highlight when selection changes from the list
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance) return;
+    instance.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+    if (!selectedItemId || selectedItemId === 'po-root') return;
+    const idx = prefixItems.findIndex(p => p.id === selectedItemId);
+    if (idx >= 0) {
+      instance.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: idx });
+    }
+  }, [selectedItemId, prefixItems]);
+
+  const sunburstOption: EChartsOption = useMemo(() => ({
+    color: PO_COLORS,
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(255,255,255,0.97)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      padding: [8, 12],
+      textStyle: { color: '#1f2937', fontSize: 12 },
+      formatter: (params: { data?: { name?: string; value?: number; percent?: number } }) => {
+        const d = params.data;
+        if (!d) return '';
+        return `<div style="font-weight:700;margin-bottom:4px">${d.name}</div>`
+          + `<div style="display:flex;justify-content:space-between;gap:20px">`
+          + `<span style="color:#6b7280">Traffic</span><strong>${d.value?.toFixed(1)} Gbps</strong></div>`
+          + `<div style="display:flex;justify-content:space-between;gap:20px">`
+          + `<span style="color:#6b7280">Share</span><strong>${d.percent?.toFixed(1)}%</strong></div>`;
+      },
+    },
+    series: [{
+      type: 'sunburst',
+      data: prefixItems.map(p => ({ name: p.name, value: p.trafficGbps, percent: p.percent })),
+      radius: ['22%', '85%'],
+      center: ['50%', '50%'],
+      nodeClick: false as const,
+      emphasis: { focus: 'self' },
+      levels: [
+        {},
+        {
+          r0: '22%', r: '85%',
+          itemStyle: { borderWidth: 3, borderColor: '#fff', borderRadius: 6 },
+          label: { fontSize: 12, color: '#1f2937', minAngle: 10 },
+          emphasis: { itemStyle: { shadowBlur: 14, shadowColor: 'rgba(0,0,0,0.2)' } },
+        },
+      ],
+      itemStyle: { borderRadius: 6, borderWidth: 2, borderColor: '#fff' },
+      label: { show: true, formatter: '{b}' },
+      animationType: 'expansion',
+      animationDuration: 800,
+    }],
+    graphic: [],
+  }), [prefixItems]);
+
+  const sunburstEvents = useMemo(() => ({
+    click: (params: { dataIndex?: number }) => {
+      if (params.dataIndex === undefined) {
+        setSelectedItemId('po-root');
+      } else {
+        const item = prefixItems[params.dataIndex];
+        if (item) {
+          setSelectedItemId(prev => prev === item.id ? 'po-root' : item.id);
+        }
+      }
+    },
+  }), [prefixItems]);
 
   if (!node) return null;
 
@@ -83,10 +159,79 @@ export function POPopup({ isOpen, onClose, node }: Props) {
     { name: 'Transit',  data: trafficData.map(d => parseFloat((d.transit  * sf).toFixed(2))) },
   ];
 
-  const rootSelected = !selectedItemId || selectedItemId === 'po-root';
-  const rootMatchesSearch = !treeSearch || node.name.toLowerCase().includes(treeSearch.toLowerCase());
-  const anyPrefixMatchesSearch = prefixItems.some(p => p.name.toLowerCase().includes(treeSearch.toLowerCase()));
-  const showRoot = !treeSearch || rootMatchesSearch || anyPrefixMatchesSearch;
+  const renderTabContent = () => {
+    if (activeTab === 'ips') {
+      return (
+        <div className={styles.tabContent}>
+          <div className={styles.sunburstWrapper}>
+            <ReactECharts
+              ref={chartRef}
+              option={sunburstOption}
+              notMerge
+              style={{ height: 480, width: '100%' }}
+              opts={{ renderer: 'svg' }}
+              onEvents={sunburstEvents}
+            />
+            <div className={styles.sunburstCenter}>
+              <span className={styles.sunburstCenterName}>{node.name}</span>
+              <span className={styles.sunburstCenterGbps}>{node.trafficGbps.toFixed(1)} Gbps</span>
+              <span className={styles.sunburstCenterSub}>{prefixItems.length} prefix{prefixItems.length !== 1 ? 'es' : ''}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.tabContent}>
+        <div className={styles.chartSection}>
+          <h4 className={styles.chartTitle}>
+            Traffic Over Time{selectedLabel ? ` — ${selectedLabel}` : ''}
+          </h4>
+          <ChartExportWrapper filename="po-traffic-timeseries">
+            <TimeSeriesChart
+              dynamicSeries={trafficSeries}
+              timestamps={timestamps}
+              height={280}
+              stacked
+              unit="Gbps"
+            />
+          </ChartExportWrapper>
+        </div>
+        <div className={styles.chartSection}>
+          <h4 className={styles.chartTitle}>Traffic per Protocol</h4>
+          <ChartExportWrapper filename="po-protocol-traffic">
+            <BarChart
+              data={protocolData.map(p => ({
+                name: p.name,
+                value: unit === 'bps' ? (p.bps / 1e9) * sf : p.pps * sf,
+                percent: p.value,
+              }))}
+              height={200}
+              unit={unit === 'bps' ? 'Gbps' : 'pps'}
+            />
+          </ChartExportWrapper>
+        </div>
+        <div className={styles.chartSection}>
+          <h4 className={styles.chartTitle}>Top Applications</h4>
+          <ChartExportWrapper filename="po-top-applications">
+            <BarChart
+              data={topApplications.map(app => ({
+                name: `${app.name}/${app.port}`,
+                value: unit === 'bps'
+                  ? (app.trafficBps / 1e9) * sf
+                  : (app.trafficBps / 1e6 * 1.2) * sf,
+                percent: app.percent,
+              }))}
+              height={260}
+              unit={unit === 'bps' ? 'Gbps' : 'pps'}
+              horizontal
+            />
+          </ChartExportWrapper>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" showClose={false}>
@@ -123,126 +268,70 @@ export function POPopup({ isOpen, onClose, node }: Props) {
 
         {/* Content */}
         <div className={styles.content}>
-          {/* Left: IP prefix tree */}
+          {/* Left: prefix list */}
           <div className={styles.treePanel}>
-            <div className={styles.treeHeader}>
-              <div className={styles.searchWrapper}>
-                <Search size={16} />
-                <input
-                  type="text"
-                  placeholder="Search prefixes..."
-                  value={treeSearch}
-                  onChange={e => setTreeSearch(e.target.value)}
-                />
-              </div>
-            </div>
             <div className={styles.treeColumnHeaders}>
               <span />
-              <span>Prefix / Name</span>
+              <span>Prefix</span>
               <span>{unit === 'bps' ? 'Gbps' : 'pps'}</span>
               <span>%</span>
             </div>
             <div className={styles.treeBody}>
-              {showRoot && (
-                <>
-                  {/* Root row — the PO itself */}
+              {/* Root "All" row */}
+              <div
+                className={`${styles.treeItem} ${(!selectedItemId || selectedItemId === 'po-root') ? styles.selected : ''}`}
+                style={{ paddingLeft: '12px' }}
+                onClick={() => setSelectedItemId('po-root')}
+              >
+                <span className={styles.expandPlaceholder} />
+                <span className={`${styles.itemName} ${styles.itemNameRoot}`}>{node.name}</span>
+                <span className={styles.itemTraffic}>
+                  {unit === 'bps'
+                    ? node.trafficGbps.toFixed(1)
+                    : (node.trafficGbps * 1.2e6).toFixed(0)}
+                </span>
+                <span className={styles.itemPercent}>100.0%</span>
+              </div>
+              {prefixItems.map(item => {
+                const isSelected = selectedItemId === item.id;
+                return (
                   <div
-                    className={`${styles.treeItem} ${rootSelected ? styles.selected : ''}`}
-                    style={{ paddingLeft: '12px' }}
-                    onClick={() => setSelectedItemId('po-root')}
+                    key={item.id}
+                    className={`${styles.treeItem} ${isSelected ? styles.selected : ''}`}
+                    style={{ paddingLeft: '28px' }}
+                    onClick={() => setSelectedItemId(isSelected ? 'po-root' : item.id)}
                   >
-                    <button
-                      className={styles.expandBtn}
-                      onClick={e => { e.stopPropagation(); setRootExpanded(v => !v); }}
-                    >
-                      {rootExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                    <span className={`${styles.itemName} ${styles.itemNameRoot}`}>{node.name}</span>
+                    <span className={styles.expandPlaceholder} />
+                    <span className={styles.itemName}>{item.name}</span>
                     <span className={styles.itemTraffic}>
                       {unit === 'bps'
-                        ? node.trafficGbps.toFixed(1)
-                        : (node.trafficGbps * 1.2e6).toFixed(0)}
+                        ? item.trafficGbps.toFixed(1)
+                        : (item.trafficGbps * 1.2e6).toFixed(0)}
                     </span>
-                    <span className={styles.itemPercent}>100.0%</span>
+                    <span className={styles.itemPercent}>{item.percent.toFixed(1)}%</span>
                   </div>
-
-                  {/* Prefix leaves */}
-                  {rootExpanded && prefixItems.map(item => {
-                    const matchesSearch = !treeSearch || item.name.toLowerCase().includes(treeSearch.toLowerCase());
-                    if (!matchesSearch) return null;
-                    const isSelected = selectedItemId === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`${styles.treeItem} ${isSelected ? styles.selected : ''}`}
-                        style={{ paddingLeft: '32px' }}
-                        onClick={() => setSelectedItemId(item.id)}
-                      >
-                        <span className={styles.expandPlaceholder} />
-                        <span className={styles.itemName}>{item.name}</span>
-                        <span className={styles.itemTraffic}>
-                          {unit === 'bps'
-                            ? item.trafficGbps.toFixed(1)
-                            : (item.trafficGbps * 1.2e6).toFixed(0)}
-                        </span>
-                        <span className={styles.itemPercent}>{item.percent.toFixed(1)}%</span>
-                      </div>
-                    );
-                  })}
-                </>
-              )}
+                );
+              })}
             </div>
           </div>
 
-          {/* Right: Charts */}
+          {/* Right: tabs + content */}
           <div className={styles.chartsPanel}>
-            <div className={styles.chartsPanelContent}>
-              <div className={styles.chartSection}>
-                <h4 className={styles.chartTitle}>
-                  Traffic Over Time{selectedLabel ? ` — ${selectedLabel}` : ''}
-                </h4>
-                <ChartExportWrapper filename="po-traffic-timeseries">
-                  <TimeSeriesChart
-                    dynamicSeries={trafficSeries}
-                    timestamps={timestamps}
-                    height={280}
-                    stacked
-                    unit="Gbps"
-                  />
-                </ChartExportWrapper>
-              </div>
-              <div className={styles.chartSection}>
-                <h4 className={styles.chartTitle}>Traffic per Protocol</h4>
-                <ChartExportWrapper filename="po-protocol-traffic">
-                  <BarChart
-                    data={protocolData.map(p => ({
-                      name: p.name,
-                      value: unit === 'bps' ? (p.bps / 1e9) * sf : p.pps * sf,
-                      percent: p.value,
-                    }))}
-                    height={200}
-                    unit={unit === 'bps' ? 'Gbps' : 'pps'}
-                  />
-                </ChartExportWrapper>
-              </div>
-              <div className={styles.chartSection}>
-                <h4 className={styles.chartTitle}>Top Applications</h4>
-                <ChartExportWrapper filename="po-top-applications">
-                  <BarChart
-                    data={topApplications.map(app => ({
-                      name: `${app.name}/${app.port}`,
-                      value: unit === 'bps'
-                        ? (app.trafficBps / 1e9) * sf
-                        : (app.trafficBps / 1e6 * 1.2) * sf,
-                      percent: app.percent,
-                    }))}
-                    height={260}
-                    unit={unit === 'bps' ? 'Gbps' : 'pps'}
-                    horizontal
-                  />
-                </ChartExportWrapper>
-              </div>
+            <div className={styles.tabs}>
+              <button
+                className={`${styles.tab} ${activeTab === 'ips' ? styles.active : ''}`}
+                onClick={() => setActiveTab('ips')}
+              >
+                IPs
+              </button>
+              <button
+                className={`${styles.tab} ${activeTab === 'traffic' ? styles.active : ''}`}
+                onClick={() => setActiveTab('traffic')}
+              >
+                Traffic
+              </button>
             </div>
+            {renderTabContent()}
           </div>
         </div>
       </div>

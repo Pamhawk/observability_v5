@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Lasso } from 'lucide-react';
+import * as echarts from 'echarts';
 import { Card, TimeRangeSelector, ExportDropdown } from '../common';
 import { SankeyDiagram } from '../charts';
 import { StageFilters } from './StageFilters';
@@ -25,6 +26,7 @@ import {
   defaultStageFilters,
   inboundStageFilters,
   outboundStageFilters,
+  eastWestStageFilters,
 } from '../../data/mockData';
 import type { SankeyNode, SankeyLink, StageFilter, TimeRange, SankeyStage, TrafficView, CustomViewConfig } from '../../types';
 import styles from './ASNPathAnalysis.module.css';
@@ -45,18 +47,20 @@ const INDEPENDENT_STAGES: SankeyStage[] = [
 ];
 
 // Per-view stage sequences for dynamic depth mapping (excludes 'custom' which is derived at runtime)
-type StandardView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic';
+type StandardView = 'networkTransit' | 'inboundTraffic' | 'outboundTraffic' | 'eastWest';
 
 const VIEW_COMPACT_ORDER: Record<StandardView, SankeyStage[]> = {
   networkTransit: ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO', 'nextPeer', 'destinationASN'],
   inboundTraffic: ['upstreamPO', 'myASN', 'nextPeer', 'destinationASN'],
   outboundTraffic: ['originASN', 'previousPeer', 'upstreamPO', 'myASN', 'downstreamPO'],
+  eastWest: ['upstreamPO', 'myASN', 'downstreamPO'],
 };
 
 const VIEW_EXPANDED_ORDER: Record<StandardView, SankeyStage[]> = {
   networkTransit: ['originASN', 'previousPeer', 'upstreamPO', 'myIngressInterface', 'myRouter', 'downstreamPO', 'nextPeer', 'destinationASN'],
   inboundTraffic: ['upstreamPO', 'myIngressInterface', 'myRouter', 'nextPeer', 'destinationASN'],
   outboundTraffic: ['originASN', 'previousPeer', 'myIngressInterface', 'myRouter', 'downstreamPO'],
+  eastWest: ['upstreamPO', 'myIngressInterface', 'myRouter', 'downstreamPO'],
 };
 
 // PO stages only get a column when at least one node of that stage is actually present.
@@ -159,6 +163,7 @@ const VIEW_LABELS: Record<TrafficView, string> = {
   networkTransit:  'Network Transit',
   inboundTraffic:  'Inbound Traffic',
   outboundTraffic: 'Outbound Traffic',
+  eastWest:        'East-West',
   custom:          'Custom',
 };
 
@@ -166,6 +171,7 @@ const VIEW_FILTERS: Record<StandardView, StageFilter[]> = {
   networkTransit:  defaultStageFilters,
   inboundTraffic:  inboundStageFilters,
   outboundTraffic: outboundStageFilters,
+  eastWest:        eastWestStageFilters,
 };
 
 const CUSTOM_STAGE_COLORS: Record<SankeyStage, string> = {
@@ -198,6 +204,69 @@ const DEFAULT_CUSTOM_COLUMNS: Set<SankeyStage> = new Set([
   'originASN', 'previousPeer', 'myASN', 'nextPeer', 'destinationASN',
 ]);
 
+// ── PO prefix expansion helpers ────────────────────────────────────────────
+
+// Same deterministic weight formula as POPopup so sizes stay consistent
+function getPrefixWeights(prefixes: string[]): number[] {
+  return prefixes.map((_, i) => 0.4 + 0.6 * (((i * 17 + 3) % 7) / 6));
+}
+
+function buildPOPrefixNodes(poNode: SankeyNode): SankeyNode[] {
+  const prefixes = poNode.prefixes ?? [];
+  if (!prefixes.length) return [];
+  const weights = getPrefixWeights(prefixes);
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  return prefixes.map((prefix, i) => ({
+    id: `${poNode.id}-pfx-${i}`,
+    name: prefix,
+    asnNumber: poNode.asnNumber,
+    stage: poNode.stage,
+    nodeType: 'prefix' as const,
+    trafficGbps: Math.round((poNode.trafficGbps * weights[i] / totalWeight) * 10) / 10,
+    country: poNode.country,
+    state: poNode.state,
+    city: poNode.city,
+    inFlows: 0,
+    outFlows: 0,
+    isMyASN: poNode.isMyASN,
+    parentPOId: poNode.id,
+  }));
+}
+
+// For any link where source or target is an expanded PO, split proportionally
+// through prefix sub-nodes. Links not touching any expanded PO pass through unchanged.
+function splitLinksForExpandedPOs(
+  links: SankeyLink[],
+  expandedPOs: Set<string>,
+  poById: Map<string, SankeyNode>,
+): SankeyLink[] {
+  if (expandedPOs.size === 0) return links;
+  const result: SankeyLink[] = [];
+  for (const link of links) {
+    const srcPO = expandedPOs.has(link.source) ? poById.get(link.source) : undefined;
+    const tgtPO = expandedPOs.has(link.target) ? poById.get(link.target) : undefined;
+    if (!srcPO && !tgtPO) {
+      result.push(link);
+    } else {
+      const po = srcPO ?? tgtPO!;
+      const prefixes = po.prefixes ?? [];
+      if (!prefixes.length) { result.push(link); continue; }
+      const weights = getPrefixWeights(prefixes);
+      const totalWeight = weights.reduce((s, w) => s + w, 0);
+      for (let i = 0; i < prefixes.length; i++) {
+        const frac = weights[i] / totalWeight;
+        const v = Math.round(link.value * frac * 10) / 10;
+        if (v < 0.05) continue;
+        result.push(srcPO
+          ? { ...link, source: `${po.id}-pfx-${i}`, value: v, trafficGbps: v }
+          : { ...link, target: `${po.id}-pfx-${i}`, value: v, trafficGbps: v },
+        );
+      }
+    }
+  }
+  return result;
+}
+
 export function ASNPathAnalysis() {
   const [trafficView, setTrafficView] = useState<TrafficView>('networkTransit');
   const [customViewConfig, setCustomViewConfig] = useState<CustomViewConfig>({
@@ -216,6 +285,8 @@ export function ASNPathAnalysis() {
 
   // Which My ASN nodes are manually expanded (icon click)
   const [expandedASNs, setExpandedASNs] = useState<Set<string>>(new Set());
+  // Which PO nodes are expanded to show IP prefix sub-nodes
+  const [expandedPOs, setExpandedPOs] = useState<Set<string>>(new Set());
   // Which router/interface node IDs are "pinned" from the My ASN popup checkbox
   const [routerFilterSelections, setRouterFilterSelections] = useState<Set<string>>(new Set());
 
@@ -233,6 +304,7 @@ export function ASNPathAnalysis() {
       setStageFilters(buildCustomStageFilters(customViewConfig.selectedColumns));
     }
     setExpandedASNs(new Set());
+    setExpandedPOs(new Set());
     setRouterFilterSelections(new Set());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trafficView]);
@@ -263,19 +335,32 @@ export function ASNPathAnalysis() {
     });
   }, []);
 
+  const handlePOToggleExpand = useCallback((nodeId: string) => {
+    setExpandedPOs(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
   const handleExpandAll = useCallback(() => {
     setExpandedASNs(new Set(allExpandableASNIds));
   }, [allExpandableASNIds]);
 
   const handleCollapseAll = useCallback(() => {
     setExpandedASNs(new Set());
+    setExpandedPOs(new Set());
     setRouterFilterSelections(new Set());
   }, []);
 
-  // Route node clicks: PO nodes open POPopup, everything else opens MyASNPopup
+  // Route node clicks: PO nodes open POPopup, prefix sub-nodes open parent PO's popup
   const handleNodeClick = useCallback((node: SankeyNode) => {
     if (node.nodeType === 'protectedObject') {
       setSelectedPONode(node);
+      setSelectedNode(null);
+    } else if (node.nodeType === 'prefix' && node.parentPOId) {
+      const parentPO = sankeyNodes.find(n => n.id === node.parentPOId) ?? null;
+      setSelectedPONode(parentPO);
       setSelectedNode(null);
     } else {
       setSelectedNode(node);
@@ -300,6 +385,14 @@ export function ASNPathAnalysis() {
     const enabledStages = new Set(stageFilters.filter(f => f.enabled).map(f => f.stage));
     const stageOn = (s: string) => enabledStages.has(s);
     const view = trafficView;
+
+    // PO prefix expansion: lookup map + shorthand split helper
+    const poById = new Map<string, SankeyNode>(
+      sankeyNodes
+        .filter(n => n.stage === 'upstreamPO' || n.stage === 'downstreamPO')
+        .map(n => [n.id, n]),
+    );
+    const sp = (links: SankeyLink[]) => splitLinksForExpandedPOs(links, expandedPOs, poById);
 
     // Custom view: ingress/router selected → force all My ASN nodes to always be expanded
     const cols = customViewConfig.selectedColumns;
@@ -352,18 +445,26 @@ export function ASNPathAnalysis() {
       }
     }
 
-    // Pass 2: add PO nodes only for visible My ASNs
+    // Pass 2: add PO nodes only for visible My ASNs (expand to prefix sub-nodes if expanded)
     if (stageOn('upstreamPO')) {
       for (const node of sankeyNodes) {
         if (node.stage === 'upstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
-          nodes.push(node);
+          if (expandedPOs.has(node.id)) {
+            nodes.push(...buildPOPrefixNodes(node));
+          } else {
+            nodes.push(node);
+          }
         }
       }
     }
     if (stageOn('downstreamPO')) {
       for (const node of sankeyNodes) {
         if (node.stage === 'downstreamPO' && visibleMyAsnNumbers.has(node.asnNumber)) {
-          nodes.push(node);
+          if (expandedPOs.has(node.id)) {
+            nodes.push(...buildPOPrefixNodes(node));
+          } else {
+            nodes.push(node);
+          }
         }
       }
     }
@@ -373,32 +474,34 @@ export function ASNPathAnalysis() {
 
     if (view === 'networkTransit') {
       allLinks.push(...originToPrevLinks);
-      allLinks.push(...prevToUpstreamPOLinks);
-      allLinks.push(...originToUpstreamPOLinks);
+      allLinks.push(...sp(prevToUpstreamPOLinks));
+      allLinks.push(...sp(originToUpstreamPOLinks));
       allLinks.push(...prevToMyAsnDirectLinks);
       allLinks.push(...myAsnToNextDirectLinks);
-      allLinks.push(...downstreamPOToNextLinks);
-      allLinks.push(...downstreamPOToDestLinks);
+      allLinks.push(...sp(downstreamPOToNextLinks));
+      allLinks.push(...sp(downstreamPOToDestLinks));
       allLinks.push(...nextToDestLinks);
     } else if (view === 'inboundTraffic') {
       allLinks.push(...myAsnToNextDirectLinks);
-      allLinks.push(...downstreamPOToNextLinks);
-      allLinks.push(...downstreamPOToDestLinks);
+      allLinks.push(...sp(downstreamPOToNextLinks));
+      allLinks.push(...sp(downstreamPOToDestLinks));
       allLinks.push(...nextToDestLinks);
     } else if (view === 'outboundTraffic') {
       allLinks.push(...originToPrevLinks);
-      allLinks.push(...prevToUpstreamPOLinks);
-      allLinks.push(...originToUpstreamPOLinks);
+      allLinks.push(...sp(prevToUpstreamPOLinks));
+      allLinks.push(...sp(originToUpstreamPOLinks));
       allLinks.push(...prevToMyAsnDirectLinks);
+    } else if (view === 'eastWest') {
+      // upstreamPO ↔ myASN ↔ downstreamPO links are all handled by the per-ASN loop below
     } else {
       // custom: push all pools; bridge eliminates links to unselected node stages
       allLinks.push(...originToPrevLinks);
-      allLinks.push(...originToUpstreamPOLinks);
-      allLinks.push(...prevToUpstreamPOLinks);
+      allLinks.push(...sp(originToUpstreamPOLinks));
+      allLinks.push(...sp(prevToUpstreamPOLinks));
       allLinks.push(...prevToMyAsnDirectLinks);
       allLinks.push(...myAsnToNextDirectLinks);
-      allLinks.push(...downstreamPOToNextLinks);
-      allLinks.push(...downstreamPOToDestLinks);
+      allLinks.push(...sp(downstreamPOToNextLinks));
+      allLinks.push(...sp(downstreamPOToDestLinks));
       allLinks.push(...nextToDestLinks);
     }
 
@@ -410,10 +513,10 @@ export function ASNPathAnalysis() {
       }
 
       if ((stageOn('myASN') && isMyAsnExpanded(asnNode.id)) || forceExpanded) {
-        allLinks.push(...(myAsnExpandedLinks[asnNode.id] ?? []));
+        allLinks.push(...sp(myAsnExpandedLinks[asnNode.id] ?? []));
       } else {
-        allLinks.push(...upstreamPOToMyAsnLinks.filter(l => l.target === asnNode.id));
-        allLinks.push(...myAsnToDownstreamPOLinks.filter(l => l.source === asnNode.id));
+        allLinks.push(...sp(upstreamPOToMyAsnLinks.filter(l => l.target === asnNode.id)));
+        allLinks.push(...sp(myAsnToDownstreamPOLinks.filter(l => l.source === asnNode.id)));
       }
     }
 
@@ -466,7 +569,7 @@ export function ASNPathAnalysis() {
     const dynamicDepths = computeDynamicDepths(view, depthEnabledStages, anyExpanded, presentStages, customOrders);
 
     return { nodes, links: semanticLinks, dynamicDepths };
-  }, [stageFilters, expandedASNs, routerFilterSelections, trafficView, customViewConfig]);
+  }, [stageFilters, expandedASNs, expandedPOs, routerFilterSelections, trafficView, customViewConfig]);
 
   // Nodes for StageFilters dropdown options
   const asnNodesForFilters = useMemo(
@@ -512,6 +615,35 @@ export function ASNPathAnalysis() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  // Sankey lasso-select state (ECharts brush)
+  const [sankeyLassoActive, setSankeyLassoActive] = useState(false);
+
+  const getSankeyInstance = useCallback(() => {
+    const container = chartRef.current;
+    if (!container) return null;
+    for (const div of Array.from(container.querySelectorAll('div'))) {
+      const instance = echarts.getInstanceByDom(div as HTMLElement);
+      if (instance) return instance;
+    }
+    return null;
+  }, []);
+
+  const activateSankeyLasso = useCallback(() => {
+    const instance = getSankeyInstance();
+    if (!instance) return;
+    instance.setOption({ brush: { brushType: 'rect' } });
+    instance.dispatchAction({ type: 'takeGlobalCursor', key: 'brush', brushOption: { brushType: 'rect' } });
+    setSankeyLassoActive(true);
+  }, [getSankeyInstance]);
+
+  const clearSankeyLasso = useCallback(() => {
+    const instance = getSankeyInstance();
+    if (!instance) return;
+    instance.dispatchAction({ type: 'brush', areas: [] });
+    instance.dispatchAction({ type: 'takeGlobalCursor', key: '' });
+    setSankeyLassoActive(false);
+  }, [getSankeyInstance]);
+
   const isForceExpanded = trafficView === 'custom' && (
     customViewConfig.selectedColumns.has('myIngressInterface') ||
     customViewConfig.selectedColumns.has('myRouter')
@@ -554,7 +686,10 @@ export function ASNPathAnalysis() {
       {/* Sankey Diagram */}
       <Card className={styles.chartCard} noPadding>
         <div className={styles.sankeyRow}>
-          <div className={`sankey-container ${styles.sankeyContainer}`} ref={chartRef}>
+          <div
+            className={`sankey-container ${styles.sankeyContainer}`}
+            ref={chartRef}
+          >
             <SankeyDiagram
               nodes={computedSankeyData.nodes}
               links={computedSankeyData.links}
@@ -567,10 +702,19 @@ export function ASNPathAnalysis() {
               dynamicDepths={computedSankeyData.dynamicDepths}
               width={chartSize.width}
               height={chartSize.height}
+              expandedPOs={expandedPOs}
+              onPOToggleExpand={handlePOToggleExpand}
               onExpandAll={isForceExpanded ? undefined : handleExpandAll}
               onCollapseAll={isForceExpanded ? undefined : handleCollapseAll}
               allExpanded={isForceExpanded || expandedASNs.size >= allExpandableASNIds.length}
             />
+            <button
+              className={`${styles.lassoBtn} ${sankeyLassoActive ? styles.lassoBtnActive : ''}`}
+              onClick={() => sankeyLassoActive ? clearSankeyLasso() : activateSankeyLasso()}
+              title="Lasso select"
+            >
+              <Lasso size={16} />
+            </button>
             <button
               className={styles.downloadBtn}
               onClick={handleDownloadPNG}

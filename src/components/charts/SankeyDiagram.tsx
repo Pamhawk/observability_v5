@@ -14,6 +14,9 @@ interface SankeyDiagramProps {
   /** Called when the My-ASN expand/collapse icon is clicked */
   onNodeToggleExpand?: (nodeId: string) => void;
   expandedASNs?: Set<string>;
+  /** Called when a PO expand/collapse icon is clicked */
+  onPOToggleExpand?: (nodeId: string) => void;
+  expandedPOs?: Set<string>;
   /** Pre-computed column depths from parent */
   dynamicDepths?: Record<string, number>;
   width?: number;
@@ -72,6 +75,8 @@ export function SankeyDiagram({
   onStageToggle,
   onNodeToggleExpand,
   expandedASNs = new Set(),
+  onPOToggleExpand,
+  expandedPOs = new Set(),
   dynamicDepths = {},
   width = 900,
   height = 500,
@@ -90,6 +95,7 @@ export function SankeyDiagram({
   const onNodeClickRef = useRef(onNodeClick);
   const onLinkClickRef = useRef(onLinkClick);
   const onNodeToggleExpandRef = useRef(onNodeToggleExpand);
+  const onPOToggleExpandRef = useRef(onPOToggleExpand);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -97,7 +103,8 @@ export function SankeyDiagram({
     onNodeClickRef.current = onNodeClick;
     onLinkClickRef.current = onLinkClick;
     onNodeToggleExpandRef.current = onNodeToggleExpand;
-  }, [nodes, links, onNodeClick, onLinkClick, onNodeToggleExpand]);
+    onPOToggleExpandRef.current = onPOToggleExpand;
+  }, [nodes, links, onNodeClick, onLinkClick, onNodeToggleExpand, onPOToggleExpand]);
 
   const nodeById = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
@@ -109,15 +116,13 @@ export function SankeyDiagram({
       const prefix = STAGE_LABEL_PREFIX[node.stage] ?? '';
       const isPO = node.nodeType === 'protectedObject';
 
-      const isPeer = node.stage === 'previousPeer' || node.stage === 'nextPeer';
-
       return {
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
           color,
-          opacity:      isPeer ? 0.35 : 1,
-          borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : 3),
+          opacity:      1,
+          borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : (node.nodeType === 'prefix' ? 4 : 3)),
           borderWidth:  node.nodeType === 'router' ? 2 : 0,
           borderColor:  node.nodeType === 'router' ? '#0a7a6e' : undefined,
         },
@@ -128,9 +133,18 @@ export function SankeyDiagram({
   );
 
   const echartsLinks = useMemo(() => {
-    // PO nodes are transparent, so links connected to them must not use the PO
-    return links.map(l => ({ source: l.source, target: l.target, value: l.value }));
-  }, [links, nodes]);
+    // Build nodeId→depth map so we can sort crossing links to the top of the draw order
+    const depthById = new Map(echartsNodes.map(n => [n.name, n.depth]));
+
+    return links
+      .map(l => ({ source: l.source, target: l.target, value: l.value }))
+      // Sort ascending by column-span so links that cross more columns are drawn last (on top)
+      .sort((a, b) => {
+        const spanA = Math.abs((depthById.get(a.target) ?? 0) - (depthById.get(a.source) ?? 0));
+        const spanB = Math.abs((depthById.get(b.target) ?? 0) - (depthById.get(b.source) ?? 0));
+        return spanA - spanB;
+      });
+  }, [links, echartsNodes]);
 
   const option: EChartsOption = useMemo(() => ({
     tooltip: { show: false },
@@ -139,6 +153,8 @@ export function SankeyDiagram({
       data: echartsNodes,
       links: echartsLinks,
       emphasis: { focus: 'adjacency', lineStyle: { opacity: 0.7 } },
+      // Keep nodes readable even when blurred (non-adjacent during hover)
+      blur: { itemStyle: { opacity: 0.55 }, lineStyle: { opacity: 0.08 } },
       lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.4 },
       label: { show: true, fontSize: 11, color: '#374151' },
       nodeWidth: 24,
@@ -294,6 +310,41 @@ export function SankeyDiagram({
           </button>,
         );
       }
+
+      // ── PO expand icon (on collapsed PO nodes) ─────────────────────────
+      if (node.nodeType === 'protectedObject') {
+        const isExpanded = expandedPOs.has(node.id);
+        const poColor = node.stage === 'upstreamPO' ? '#818CF8' : '#FB923C';
+        icons.push(
+          <button
+            key={`po-exp-${node.id}`}
+            className={styles.iconBtn}
+            style={{ left: right, top: topY, background: poColor, color: '#fff', opacity: 0.85 }}
+            title={isExpanded ? 'Collapse IP prefixes' : 'Expand IP prefixes'}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onPOToggleExpandRef.current?.(node.id); }}
+          >
+            {isExpanded ? '◀' : '▶'}
+          </button>,
+        );
+      }
+
+      // ── Prefix collapse icon (on prefix sub-nodes) ──────────────────────
+      if (node.nodeType === 'prefix' && node.parentPOId) {
+        const poColor = node.stage === 'upstreamPO' ? '#818CF8' : '#FB923C';
+        icons.push(
+          <button
+            key={`pfx-col-${node.id}`}
+            className={styles.iconBtn}
+            style={{ left: right, top: topY, background: '#fff', color: poColor, border: `1px solid ${poColor}`, opacity: 0.85, fontSize: '9px' }}
+            title="Collapse back to PO"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onPOToggleExpandRef.current?.(node.parentPOId!); }}
+          >
+            ✕
+          </button>,
+        );
+      }
     }
 
     return icons;
@@ -306,8 +357,10 @@ export function SankeyDiagram({
     if (tooltip.type === 'node') {
       const node = tooltip.data as SankeyNode;
       let hint: string | null = null;
-      if (node.expandable) hint = 'Click ▶ to expand routers & interfaces';
+      if (node.expandable && node.stage === 'myASN') hint = 'Click ▶ to expand routers & interfaces';
       else if (node.stage === 'myRouter') hint = 'Click node for details · ✕ to collapse';
+      else if (node.nodeType === 'protectedObject') hint = 'Click ▶ to expand IP prefixes · Click node for details';
+      else if (node.nodeType === 'prefix') hint = 'Click ✕ to collapse · Click node for details';
       else hint = 'Click node for details';
 
       return (
