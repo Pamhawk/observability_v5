@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Camera, Lasso } from 'lucide-react';
-import * as echarts from 'echarts';
 import { Card, TimeRangeSelector, ExportDropdown } from '../common';
 import { SankeyDiagram } from '../charts';
 import { StageFilters } from './StageFilters';
@@ -615,34 +614,53 @@ export function ASNPathAnalysis() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
-  // Sankey lasso-select state (ECharts brush)
+  // Sankey lasso-select state (SVG mouse-drag brush for D3 chart)
   const [sankeyLassoActive, setSankeyLassoActive] = useState(false);
+  const [lassoRect, setLassoRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  const getSankeyInstance = useCallback(() => {
-    const container = chartRef.current;
-    if (!container) return null;
-    for (const div of Array.from(container.querySelectorAll('div'))) {
-      const instance = echarts.getInstanceByDom(div as HTMLElement);
-      if (instance) return instance;
-    }
-    return null;
-  }, []);
+  useEffect(() => {
+    if (!sankeyLassoActive) return;
+    const handleGlobalMouseUp = () => { lassoStartRef.current = null; };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [sankeyLassoActive]);
 
   const activateSankeyLasso = useCallback(() => {
-    const instance = getSankeyInstance();
-    if (!instance) return;
-    instance.setOption({ brush: { brushType: 'rect' } });
-    instance.dispatchAction({ type: 'takeGlobalCursor', key: 'brush', brushOption: { brushType: 'rect' } });
     setSankeyLassoActive(true);
-  }, [getSankeyInstance]);
+    setLassoRect(null);
+  }, []);
 
   const clearSankeyLasso = useCallback(() => {
-    const instance = getSankeyInstance();
-    if (!instance) return;
-    instance.dispatchAction({ type: 'brush', areas: [] });
-    instance.dispatchAction({ type: 'takeGlobalCursor', key: '' });
     setSankeyLassoActive(false);
-  }, [getSankeyInstance]);
+    setLassoRect(null);
+    lassoStartRef.current = null;
+  }, []);
+
+  const handleLassoMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const container = chartRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    lassoStartRef.current = { x, y };
+    setLassoRect({ x1: x, y1: y, x2: x, y2: y });
+    e.preventDefault();
+  }, []);
+
+  const handleLassoMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!lassoStartRef.current) return;
+    const container = chartRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setLassoRect({ x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y });
+  }, []);
+
+  const handleLassoMouseUp = useCallback(() => {
+    lassoStartRef.current = null;
+  }, []);
 
   const isForceExpanded = trafficView === 'custom' && (
     customViewConfig.selectedColumns.has('myIngressInterface') ||
@@ -708,6 +726,31 @@ export function ASNPathAnalysis() {
               onCollapseAll={isForceExpanded ? undefined : handleCollapseAll}
               allExpanded={isForceExpanded || expandedASNs.size >= allExpandableASNIds.length}
             />
+            {/* Lasso overlay — captures mouse events for drawing selection rect */}
+            {sankeyLassoActive && (
+              <div
+                style={{ position: 'absolute', inset: 0, cursor: 'crosshair', zIndex: 5 }}
+                onMouseDown={handleLassoMouseDown}
+                onMouseMove={handleLassoMouseMove}
+                onMouseUp={handleLassoMouseUp}
+              />
+            )}
+            {/* Selection rectangle */}
+            {lassoRect && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: Math.min(lassoRect.x1, lassoRect.x2),
+                  top: Math.min(lassoRect.y1, lassoRect.y2),
+                  width: Math.abs(lassoRect.x2 - lassoRect.x1),
+                  height: Math.abs(lassoRect.y2 - lassoRect.y1),
+                  border: '1.5px dashed #6366F1',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  pointerEvents: 'none',
+                  zIndex: 6,
+                }}
+              />
+            )}
             <button
               className={`${styles.lassoBtn} ${sankeyLassoActive ? styles.lassoBtnActive : ''}`}
               onClick={() => sankeyLassoActive ? clearSankeyLasso() : activateSankeyLasso()}

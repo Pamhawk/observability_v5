@@ -1,7 +1,6 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Camera, Lasso } from 'lucide-react';
-import * as echarts from 'echarts';
 
 interface ChartExportWrapperProps {
   children: ReactNode;
@@ -12,15 +11,50 @@ interface ChartExportWrapperProps {
 export function ChartExportWrapper({ children, filename = 'chart' }: ChartExportWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [lassoActive, setLassoActive] = useState(false);
+  const [lassoRect, setLassoRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  const getEchartsInstance = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return null;
-    for (const div of Array.from(el.querySelectorAll('div'))) {
-      const instance = echarts.getInstanceByDom(div as HTMLElement);
-      if (instance) return instance;
+  useEffect(() => {
+    if (!lassoActive) return;
+    const handleGlobalMouseUp = () => { lassoStartRef.current = null; };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [lassoActive]);
+
+  const handleLassoToggle = useCallback(() => {
+    if (lassoActive) {
+      setLassoActive(false);
+      setLassoRect(null);
+      lassoStartRef.current = null;
+    } else {
+      setLassoActive(true);
+      setLassoRect(null);
     }
-    return null;
+  }, [lassoActive]);
+
+  const handleLassoMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    lassoStartRef.current = { x, y };
+    setLassoRect({ x1: x, y1: y, x2: x, y2: y });
+    e.preventDefault();
+  }, []);
+
+  const handleLassoMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!lassoStartRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setLassoRect({ x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y });
+  }, []);
+
+  const handleLassoMouseUp = useCallback(() => {
+    lassoStartRef.current = null;
   }, []);
 
   const handleDownloadPNG = useCallback(() => {
@@ -56,27 +90,6 @@ export function ChartExportWrapper({ children, filename = 'chart' }: ChartExport
     }
   }, [filename]);
 
-  const activateLasso = useCallback((instance: ReturnType<typeof echarts.getInstanceByDom>) => {
-    if (!instance) return;
-    instance.setOption({ brush: { brushType: 'rect' } });
-    instance.dispatchAction({ type: 'takeGlobalCursor', key: 'brush', brushOption: { brushType: 'rect' } });
-    setLassoActive(true);
-  }, []);
-
-  const clearLasso = useCallback((instance: ReturnType<typeof echarts.getInstanceByDom>) => {
-    if (!instance) return;
-    instance.dispatchAction({ type: 'brush', areas: [] });
-    instance.dispatchAction({ type: 'takeGlobalCursor', key: '' });
-    setLassoActive(false);
-  }, []);
-
-  const handleLassoToggle = useCallback(() => {
-    const instance = getEchartsInstance();
-    if (!instance) return;
-    if (lassoActive) clearLasso(instance);
-    else activateLasso(instance);
-  }, [lassoActive, getEchartsInstance, activateLasso, clearLasso]);
-
   const sharedBtnStyle: React.CSSProperties = {
     position: 'absolute',
     top: 4,
@@ -97,6 +110,33 @@ export function ChartExportWrapper({ children, filename = 'chart' }: ChartExport
       style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       {children}
+
+      {/* Lasso overlay — captures mouse events for drawing selection rect */}
+      {lassoActive && (
+        <div
+          style={{ position: 'absolute', inset: 0, cursor: 'crosshair', zIndex: 5 }}
+          onMouseDown={handleLassoMouseDown}
+          onMouseMove={handleLassoMouseMove}
+          onMouseUp={handleLassoMouseUp}
+        />
+      )}
+
+      {/* Selection rectangle */}
+      {lassoRect && (
+        <div
+          style={{
+            position: 'absolute',
+            left: Math.min(lassoRect.x1, lassoRect.x2),
+            top: Math.min(lassoRect.y1, lassoRect.y2),
+            width: Math.abs(lassoRect.x2 - lassoRect.x1),
+            height: Math.abs(lassoRect.y2 - lassoRect.y1),
+            border: '1.5px dashed #6366F1',
+            background: 'rgba(99, 102, 241, 0.08)',
+            pointerEvents: 'none',
+            zIndex: 6,
+          }}
+        />
+      )}
 
       {/* Lasso select button */}
       <button
