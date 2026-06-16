@@ -614,10 +614,16 @@ export function ASNPathAnalysis() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
-  // Sankey lasso-select state (SVG mouse-drag brush for D3 chart)
+  // Sankey lasso-select state
   const [sankeyLassoActive, setSankeyLassoActive] = useState(false);
   const [lassoRect, setLassoRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [lassoSelectedIds, setLassoSelectedIds] = useState<Set<string>>(new Set());
   const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Refs so mouseup handler can read latest values without re-creating on every mousemove
+  const lassoRectRef = useRef(lassoRect);
+  lassoRectRef.current = lassoRect;
+  const sankeyNodesRef = useRef(computedSankeyData.nodes);
+  sankeyNodesRef.current = computedSankeyData.nodes;
 
   useEffect(() => {
     if (!sankeyLassoActive) return;
@@ -635,6 +641,7 @@ export function ASNPathAnalysis() {
     setSankeyLassoActive(false);
     setLassoRect(null);
     lassoStartRef.current = null;
+    setLassoSelectedIds(new Set());
   }, []);
 
   const handleLassoMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -655,11 +662,53 @@ export function ASNPathAnalysis() {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setLassoRect({ x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y });
+    const newRect = { x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y };
+    lassoRectRef.current = newRect;
+    setLassoRect(newRect);
   }, []);
 
   const handleLassoMouseUp = useCallback(() => {
     lassoStartRef.current = null;
+
+    const sel = lassoRectRef.current;
+    if (!sel || Math.abs(sel.x2 - sel.x1) < 5) return;
+
+    const container = chartRef.current;
+    if (!container) return;
+
+    // Selection bounds in page (client) coordinates
+    const containerRect = container.getBoundingClientRect();
+    const selLeft   = containerRect.left + Math.min(sel.x1, sel.x2);
+    const selRight  = containerRect.left + Math.max(sel.x1, sel.x2);
+    const selTop    = containerRect.top  + Math.min(sel.y1, sel.y2);
+    const selBottom = containerRect.top  + Math.max(sel.y1, sel.y2);
+
+    // Build map: display name → node.id (ECharts internal key used in series.data)
+    const nodes = sankeyNodesRef.current as Array<{ id: string; name: string; stage: string }>;
+    const nameToId = new Map(nodes.map(n => [n.name, n.id]));
+
+    // Find SVG text labels whose center falls inside the selection rectangle.
+    // Strip the '↓ ' prefix used on myIngressInterface nodes before matching.
+    const svg = container.querySelector('svg');
+    const selectedIds = new Set<string>();
+    if (svg) {
+      for (const t of Array.from(svg.querySelectorAll('text'))) {
+        const label = t.textContent?.trim() ?? '';
+        const displayName = label.replace(/^↓ /, '');
+        const nodeId = nameToId.get(displayName);
+        if (!nodeId) continue;
+        const tr = t.getBoundingClientRect();
+        const cx = tr.left + tr.width / 2;
+        const cy = tr.top  + tr.height / 2;
+        if (cx >= selLeft && cx <= selRight && cy >= selTop && cy <= selBottom) {
+          selectedIds.add(nodeId);
+        }
+      }
+    }
+
+    if (selectedIds.size > 0) {
+      setLassoSelectedIds(selectedIds);
+    }
   }, []);
 
   const isForceExpanded = trafficView === 'custom' && (
@@ -725,6 +774,7 @@ export function ASNPathAnalysis() {
               onExpandAll={isForceExpanded ? undefined : handleExpandAll}
               onCollapseAll={isForceExpanded ? undefined : handleCollapseAll}
               allExpanded={isForceExpanded || expandedASNs.size >= allExpandableASNIds.length}
+              lassoSelectedIds={lassoSelectedIds}
             />
             {/* Lasso overlay — captures mouse events for drawing selection rect */}
             {sankeyLassoActive && (

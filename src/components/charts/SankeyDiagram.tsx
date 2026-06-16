@@ -25,6 +25,8 @@ interface SankeyDiagramProps {
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
   allExpanded?: boolean;
+  /** Node IDs (node.id) selected by lasso — non-selected nodes are dimmed */
+  lassoSelectedIds?: Set<string>;
 }
 
 interface TooltipData {
@@ -83,6 +85,7 @@ export function SankeyDiagram({
   onExpandAll,
   onCollapseAll,
   allExpanded = false,
+  lassoSelectedIds,
 }: SankeyDiagramProps) {
   const chartRef = useRef<ReactECharts>(null);
   const containerDivRef = useRef<HTMLDivElement>(null);
@@ -115,13 +118,14 @@ export function SankeyDiagram({
       const color = filterColor ?? STAGE_COLORS[node.stage] ?? '#999';
       const prefix = STAGE_LABEL_PREFIX[node.stage] ?? '';
       const isPO = node.nodeType === 'protectedObject';
+      const dimmed = lassoSelectedIds && lassoSelectedIds.size > 0 && !lassoSelectedIds.has(node.id);
 
       return {
         name: node.id,
         depth: dynamicDepths[node.stage] ?? 0,
         itemStyle: {
           color,
-          opacity:      1,
+          opacity:      dimmed ? 0.15 : 1,
           borderRadius: isPO ? 8 : (node.nodeType === 'router' ? 4 : (node.nodeType === 'prefix' ? 4 : 3)),
           borderWidth:  node.nodeType === 'router' ? 2 : 0,
           borderColor:  node.nodeType === 'router' ? '#0a7a6e' : undefined,
@@ -129,7 +133,7 @@ export function SankeyDiagram({
         label: { formatter: () => `${prefix}${node.name}` },
       };
     }),
-    [nodes, stageFilters, dynamicDepths],
+    [nodes, stageFilters, dynamicDepths, lassoSelectedIds],
   );
 
   const echartsLinks = useMemo(() => {

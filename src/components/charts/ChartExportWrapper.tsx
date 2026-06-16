@@ -8,11 +8,30 @@ interface ChartExportWrapperProps {
   title?: string;
 }
 
+function getFiberEchartsInstance(container: HTMLElement) {
+  const echartsDiv = container.querySelector('.echarts-for-react');
+  if (!echartsDiv) return null;
+  const fiberKey = Object.keys(echartsDiv).find(k => k.startsWith('__reactFiber'));
+  if (!fiberKey) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fiber = (echartsDiv as any)[fiberKey];
+  let steps = 0;
+  while (fiber && steps < 10) {
+    steps++;
+    if (fiber.stateNode?.getEchartsInstance) return fiber.stateNode.getEchartsInstance();
+    fiber = fiber.return;
+  }
+  return null;
+}
+
 export function ChartExportWrapper({ children, filename = 'chart' }: ChartExportWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [lassoActive, setLassoActive] = useState(false);
   const [lassoRect, setLassoRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Ref so handleLassoMouseUp can read the latest lassoRect without being in deps
+  const lassoRectRef = useRef(lassoRect);
+  lassoRectRef.current = lassoRect;
 
   useEffect(() => {
     if (!lassoActive) return;
@@ -50,11 +69,45 @@ export function ChartExportWrapper({ children, filename = 'chart' }: ChartExport
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setLassoRect({ x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y });
+    const newRect = { x1: lassoStartRef.current.x, y1: lassoStartRef.current.y, x2: x, y2: y };
+    lassoRectRef.current = newRect;
+    setLassoRect(newRect);
   }, []);
 
   const handleLassoMouseUp = useCallback(() => {
     lassoStartRef.current = null;
+
+    const sel = lassoRectRef.current;
+    if (!sel || Math.abs(sel.x2 - sel.x1) < 5) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const instance: any = getFiberEchartsInstance(el);
+    if (!instance) return;
+
+    // Adjust pixel coords from container-space to echarts-div-space
+    const echartsDiv = el.querySelector('.echarts-for-react') as HTMLElement;
+    const containerRect = el.getBoundingClientRect();
+    const echartsRect = echartsDiv.getBoundingClientRect();
+    const dx = echartsRect.left - containerRect.left;
+
+    const x1 = Math.min(sel.x1, sel.x2) - dx;
+    const x2 = Math.max(sel.x1, sel.x2) - dx;
+
+    try {
+      // Works for cartesian charts (time series, bar, line)
+      const startVal = instance.convertFromPixel({ xAxisIndex: 0 }, x1);
+      const endVal   = instance.convertFromPixel({ xAxisIndex: 0 }, x2);
+      if (startVal != null && endVal != null && startVal !== endVal) {
+        instance.setOption({
+          xAxis: [{ min: Math.min(startVal, endVal), max: Math.max(startVal, endVal) }]
+        }, false); // merge — won't clobber series/tooltip/etc.
+      }
+    } catch {
+      // Sankey, pie, etc. — visual rect is sufficient
+    }
   }, []);
 
   const handleDownloadPNG = useCallback(() => {
